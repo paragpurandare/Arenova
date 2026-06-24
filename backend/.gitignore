@@ -17,6 +17,7 @@ target/
 .settings/
 .springBeans
 .sts4-cache/
+.project
 
 ##############################################
 # IntelliJ IDEA
@@ -50,6 +51,12 @@ build/
 *.jar
 *.war
 *.ear
+
+# Build folders
+bin/
+backend/bin/
+backend/target/
+
 
 ##############################################
 # Logs
