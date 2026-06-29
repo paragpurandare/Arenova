@@ -1,5 +1,4 @@
 package com.arenova.club.entities;
-
 import java.math.BigDecimal;
 
 import com.arenova.club.enums.ClubStatus;
