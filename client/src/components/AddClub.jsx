@@ -1,6 +1,8 @@
 // AddClub.jsx
 import React, { useState } from 'react';
 import MapModalWrapper from './MapModalWrapper';
+import axios from 'axios';
+
 
 /**
  * AddClub Component: The primary registration form.
@@ -11,15 +13,15 @@ const AddClub = () => {
     // Stores all form values, separating individual location details for fine-grained database queries
     const [form, setForm] = useState({
         clubName: '',
-        description: '', 
-        basePrice: '',   
+        description: '',
+        basePrice: '',
         lat: '',
         lng: '',
         address: '',
         city: '',
-        state: '',       
-        country: '',     
-        pincode: '',   
+        state: '',
+        country: '',
+        pincode: '',
         placeId: '',     // 🚀 NEW: Keeps Ola's unique location ID tracker
         imageUrl: '...'  // Default placeholder value for image slots
     });
@@ -82,6 +84,21 @@ const AddClub = () => {
 
         // Logs out the packaged final object to show your database parameters are cleanly formatted
         console.log("Submitting this clean object payload to your Backend DB route:", payload);
+        axios.post("http://localhost:8080/api/clubs", payload)
+            .then((result) => {
+                // Spring Boot returns the created club object if successful
+                if (result.data && result.data.id) {
+                    console.log("Club Added Successfully:", result.data);
+                    alert("Club registered successfully!");
+                } else {
+                    console.log("Server responded, but payload layout was unexpected.");
+                }
+            })
+            .catch((err) => {
+                // 🚀 This block safely captures database issues, valid token missing, or network down errors
+                console.error("Error in inserting club:", err.response?.data || err.message);
+                alert("Failed to insert club: " + (err.response?.data?.message || "Server Error"));
+            });
     };
 
     return (

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.arenova.club.dtos.ClubRequestDTO;
 import com.arenova.club.dtos.ClubResponseDTO;
 import com.arenova.club.entities.Club;
+import com.arenova.club.enums.ClubStatus;
 import com.arenova.club.repository.ClubRepository;
 import com.arenova.common.Exceptions.ResourceNotFoundException;
 import com.arenova.user.entities.User;
@@ -43,6 +44,7 @@ public class ClubService {
 		club.setPlaceId(clubDto.getPlaceId());
 		club.setId(null);
 		club.setOwner(owner);
+		club.setStatus(ClubStatus.PENDING);
 		
 		clubRepo.save(club);
 	}

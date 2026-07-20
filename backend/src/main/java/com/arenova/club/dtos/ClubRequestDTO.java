@@ -29,5 +29,5 @@ public class ClubRequestDTO {
 	    private String imageUrl;
 	    private Long ownerId;
 	    private BigDecimal basePrice;
-	    private ClubStatus status;
+	    
 }
