@@ -49,19 +49,29 @@ public class ClubService {
 		clubRepo.save(club);
 	}
 	
+	
 	public List<ClubResponseDTO> getAllClubs(Long ownerId) {
-		
-		if(!userRepo.existsById(ownerId)) {
-			
-			throw new ResourceNotFoundException("Owner Does not Exists");
-		}
-		
-		List<Club> clubs = clubRepo.findClubsByOwnerId(ownerId);
-		
-		return clubs.stream()
-					.map((club)-> modelMapper.map(club, ClubResponseDTO.class))
-					.collect(Collectors.toList());
-				
+	    
+	    if(!userRepo.existsById(ownerId)) {
+	        throw new ResourceNotFoundException("Owner Does not Exists");
+	    }
+	    
+	    List<Club> clubs = clubRepo.findClubsByOwnerId(ownerId);
+	    
+	    return clubs.stream()
+	                .map(club -> {
+	                    // 1. Let ModelMapper map all matching fields
+	                    ClubResponseDTO dto = modelMapper.map(club, ClubResponseDTO.class);
+	                    
+	                    // 2. Safely stitch together the name if the owner entity exists
+	                    if (club.getOwner() != null) {
+	                        String fullName = club.getOwner().getFirstName() + " " + club.getOwner().getLastName();
+	                        dto.setOwnerFirstName(fullName);
+	                    }
+	                    
+	                    return dto; // 3. Return the fully populated DTO to the stream
+	                })
+	                .collect(Collectors.toList());
 	}
 	
 }
