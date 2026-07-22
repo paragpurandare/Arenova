@@ -1,14 +1,11 @@
-// ─── AUTH CONTEXT ──────────────────────────────────────────────────────────
-// Lightweight auth provider storing the active user and role in React state
-// plus localStorage so a page refresh preserves the session. ProtectedRoute
-// reads from this context to decide whether to render or redirect to /login.
 import { createContext, useContext, useEffect, useState } from "react";
+import { login as loginApi, register as registerApi, getProfile } from "../services/authService";
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEY = "arenova_auth_user";
+const USER_KEY = "arenova_auth_user";
+const TOKEN_KEY = "arenova_jwt";
 
-// Available roles mirror the backend UserRole enum.
 export const ROLES = {
   CUSTOMER: "customer",
   MANAGER: "manager",
@@ -19,37 +16,75 @@ export const ROLES = {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(USER_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
     }
   });
 
-  // Persist user to localStorage whenever it changes so refreshes keep the
-  // session alive without a round-trip to the backend.
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+
   useEffect(() => {
     if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(USER_KEY);
     }
   }, [user]);
 
-  // login simply stores the user object (name + role). Replace with a real
-  // API call to the backend auth endpoint when it is available.
-  const login = (userData) => setUser(userData);
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  }, [token]);
 
-  const logout = () => setUser(null);
+  const login = async (email, password) => {
+    const data = await loginApi(email, password);
+    const jwt = data.token || data.jwt;
+    const profile = data.user || data;
+    setToken(jwt);
+    setUser(profile);
+    return profile;
+  };
+
+  const register = async (payload) => {
+    const data = await registerApi(payload);
+    const jwt = data.token || data.jwt;
+    const profile = data.user || data;
+    setToken(jwt);
+    setUser(profile);
+    return profile;
+  };
+
+  const loginAsRole = (role, name = "Guest User") => {
+    const profile = { name, role, email: "" };
+    setUser(profile);
+    return profile;
+  };
+
+  const refreshProfile = async () => {
+    const profile = await getProfile();
+    setUser(profile);
+    return profile;
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, login, register, loginAsRole, refreshProfile, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Convenience hook so components don't import the context object directly.
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within an AuthProvider");

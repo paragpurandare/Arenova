@@ -1,111 +1,40 @@
-/* ─── ARENOVA THEME ──────────────────────────────────────────────────────────
-   Global styles and CSS custom properties. The app uses inline styles for
-   component-level theming (driven by JS constants), so this file only sets
-   base resets, the font stack, and a few global utilities. */
+@import "tailwindcss";
 
 :root {
-  /* Font system — system UI stack for fast loading + native feel */
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  /* Base text colors */
-  --text: #555;
-  --text-h: #08060d;
-  --bg: #faf9f6;
-  --border: #f0ede6;
-
-  /* Primary palette — green for sports/active theme */
-  --primary: #1D9E75;
-  --primary-bg: #E1F5EE;
-  --primary-border: rgba(29, 158, 117, 0.5);
-
-  /* Secondary palette — blue for info/trust */
-  --secondary: #185FA5;
-  --secondary-bg: #E6F1FB;
-
-  /* Accent — warm amber for highlights */
-  --accent: #BA7517;
-  --accent-bg: #FAEEDA;
-
-  /* Semantic colors */
-  --success: #0F6E56;
-  --success-bg: #E1F5EE;
-  --warning: #854F0B;
-  --warning-bg: #FAEEDA;
-  --error: #A32D2D;
-  --error-bg: #FCEBEB;
-
-  font: 15px/150% var(--sans);
-  color-scheme: light;
-  color: var(--text);
-  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Base reset ─── */
 body {
   margin: 0;
-  background: var(--bg);
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
-#root {
-  min-height: 100vh;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d5d3cc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #b8b6af; }
 
-/* ─── Typography defaults ─── */
-h1, h2, h3, h4 {
-  font-family: var(--heading);
-  color: var(--text-h);
-  line-height: 120%;
-}
-
-p {
-  margin: 0;
-}
-
-/* ─── Scrollbar styling for a polished feel ─── */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #d5d3cc;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #b8b6af;
-}
-
-/* ─── Modal entrance animation ─── */
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ─── Remove default table spacing ─── */
-table {
-  border-collapse: collapse;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* ─── Link reset ─── */
-a {
-  color: inherit;
-  text-decoration: none;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Remove number input spinners for cleaner UI ─── */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-input[type="number"] {
-  -moz-appearance: textfield;
-}
+input[type="number"] { -moz-appearance: textfield; }
