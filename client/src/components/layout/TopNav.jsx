@@ -1,19 +1,8 @@
-// ─── TOP NAV ────────────────────────────────────────────────────────────────
-// Top navigation bar shown on every dashboard page. Shows the Arenova logo,
-// the current user's name + role badge, and a logout button.
 import { useNavigate } from "react-router-dom";
-import { useAuth, ROLES } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import Badge from "../ui/Badge";
 
-// Map role → display label
-const ROLE_LABELS = {
-  customer: "Customer",
-  manager: "Manager",
-  owner: "Owner",
-  super: "Super Admin",
-};
-
-// Map role → badge color
+const ROLE_LABELS = { customer: "Customer", manager: "Manager", owner: "Owner", super: "Super Admin" };
 const ROLE_COLORS = {
   customer: { color: "#185FA5", bg: "#E6F1FB" },
   manager: { color: "#BA7517", bg: "#FAEEDA" },
@@ -47,7 +36,6 @@ export default function TopNav() {
         justifyContent: "space-between",
       }}
     >
-      {/* Logo + brand */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <div
           style={{
@@ -70,16 +58,13 @@ export default function TopNav() {
         </span>
       </div>
 
-      {/* User info + logout */}
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: "14px", fontWeight: 600, color: "#08060d" }}>
             {user?.name || "Guest"}
           </div>
           <div style={{ marginTop: "2px" }}>
-            <Badge color={rc.color} bg={rc.bg}>
-              {ROLE_LABELS[user?.role] || "User"}
-            </Badge>
+            <Badge color={rc.color} bg={rc.bg}>{ROLE_LABELS[user?.role] || "User"}</Badge>
           </div>
         </div>
         <button

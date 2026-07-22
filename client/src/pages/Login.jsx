@@ -30,17 +30,11 @@ export default function Login() {
     setLoading(true);
     try {
       if (mode === "register") {
-        try {
-          await register({ name, email, password, role: selectedRole });
-        } catch {
-          loginAsRole(selectedRole, name);
-        }
+        try { await register({ name, email, password, role: selectedRole }); }
+        catch { loginAsRole(selectedRole, name); }
       } else {
-        try {
-          await login(email, password);
-        } catch {
-          loginAsRole(selectedRole, name || email);
-        }
+        try { await login(email, password); }
+        catch { loginAsRole(selectedRole, name || email); }
       }
       navigate(`/${selectedRole}`);
     } catch (err) {
@@ -54,20 +48,14 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-5" style={{ background: "linear-gradient(135deg, #f5f4f0 0%, #e8f5ef 100%)" }}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-10" style={{ animation: "modalIn 0.3s ease" }}>
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-4" style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}>
-            A
-          </div>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-4" style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}>A</div>
           <h1 className="text-2xl font-extrabold text-[#08060d] m-0">Welcome to Arenova</h1>
           <p className="text-sm text-gray-500 mt-1.5">Unified Sports Arena, Rental & Player Experience Platform</p>
         </div>
 
         <div className="flex gap-2 mb-6 bg-[#faf9f6] rounded-xl p-1">
-          <button onClick={() => setMode("login")} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${mode === "login" ? "bg-white text-[#1D9E75] shadow-sm" : "text-gray-500"}`}>
-            Sign In
-          </button>
-          <button onClick={() => setMode("register")} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${mode === "register" ? "bg-white text-[#1D9E75] shadow-sm" : "text-gray-500"}`}>
-            Register
-          </button>
+          <button onClick={() => setMode("login")} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${mode === "login" ? "bg-white text-[#1D9E75] shadow-sm" : "text-gray-500"}`}>Sign In</button>
+          <button onClick={() => setMode("register")} className={`flex-1 py-2.5 rounded-lg font-semibold text-sm transition-all ${mode === "register" ? "bg-white text-[#1D9E75] shadow-sm" : "text-gray-500"}`}>Register</button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -110,9 +98,7 @@ export default function Login() {
             </div>
           </Field>
 
-          {error && (
-            <div className="p-3 rounded-lg mb-4 text-sm font-semibold bg-[#FCEBEB] text-[#A32D2D]">{error}</div>
-          )}
+          {error && <div className="p-3 rounded-lg mb-4 text-sm font-semibold bg-[#FCEBEB] text-[#A32D2D]">{error}</div>}
 
           <Button type="submit" fullWidth size="lg" disabled={loading} style={{ marginTop: "4px" }}>
             {loading ? "Please wait…" : mode === "login" ? "Sign In →" : "Create Account →"}

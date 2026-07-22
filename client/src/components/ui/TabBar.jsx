@@ -1,6 +1,3 @@
-// ─── TAB BAR ────────────────────────────────────────────────────────────────
-// Horizontal tab navigation. `tabs` is an array of { key, label, icon? }.
-// Controlled component — parent owns `active` and calls `onChange`.
 export default function TabBar({ tabs, active, onChange }) {
   return (
     <div

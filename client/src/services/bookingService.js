@@ -15,16 +15,6 @@ export const fetchBookings = async () => {
   return data;
 };
 
-export const fetchBookingById = async (bookingId) => {
-  const { data } = await api.get(`/bookings/${bookingId}`);
-  return data;
-};
-
-export const fetchRentals = async () => {
-  const { data } = await api.get("/rentals");
-  return data;
-};
-
 export const returnRental = async (rentalId) => {
   const { data } = await api.post(`/rentals/${rentalId}/return`);
   return data;

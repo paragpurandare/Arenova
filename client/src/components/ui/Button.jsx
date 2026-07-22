@@ -1,7 +1,3 @@
-// ─── BUTTON ────────────────────────────────────────────────────────────────
-// Reusable button with three visual variants: solid (primary), outline
-// (secondary), and ghost (tertiary). Sizes: sm, md, lg. Supports `as` prop
-// for rendering as a different element (e.g. Link via `as={Link}`).
 export default function Button({
   children,
   variant = "solid",

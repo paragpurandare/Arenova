@@ -26,19 +26,13 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(USER_KEY);
-    }
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_KEY);
   }, [user]);
 
   useEffect(() => {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
   }, [token]);
 
   const login = async (email, password) => {
@@ -65,21 +59,13 @@ export function AuthProvider({ children }) {
     return profile;
   };
 
-  const refreshProfile = async () => {
-    const profile = await getProfile();
-    setUser(profile);
-    return profile;
-  };
-
   const logout = () => {
     setUser(null);
     setToken(null);
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, token, login, register, loginAsRole, refreshProfile, logout }}
-    >
+    <AuthContext.Provider value={{ user, token, login, register, loginAsRole, logout }}>
       {children}
     </AuthContext.Provider>
   );

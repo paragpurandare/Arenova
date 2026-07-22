@@ -1,6 +1,3 @@
-// ─── FIELD ─────────────────────────────────────────────────────────────────
-// Form field wrapper that renders a label + children (usually an Input).
-// Keeps label/input spacing consistent across all forms.
 export default function Field({ label, required, children, hint }) {
   return (
     <div style={{ marginBottom: "16px" }}>

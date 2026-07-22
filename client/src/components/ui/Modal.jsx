@@ -1,10 +1,6 @@
-// ─── MODAL ─────────────────────────────────────────────────────────────────
-// Accessible-ish modal dialog. Renders a backdrop overlay and a centered
-// panel. Closes on backdrop click and Escape key. `size` controls max-width.
 import { useEffect } from "react";
 
 export default function Modal({ open, onClose, title, children, size = "md" }) {
-  // Close on Escape key press for keyboard accessibility.
   useEffect(() => {
     if (!open) return;
     const handler = (e) => e.key === "Escape" && onClose?.();

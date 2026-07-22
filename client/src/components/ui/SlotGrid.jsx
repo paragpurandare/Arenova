@@ -1,7 +1,3 @@
-// ─── SLOT GRID ──────────────────────────────────────────────────────────────
-// Time-slot grid for court booking. Renders a row of time slots colored by
-// status (available / booked / locked / blocked). Clicking an available slot
-// calls onSelect with the slot time. Uses STATUS_BG / STATUS_COLOR maps.
 import { STATUS_BG, STATUS_COLOR } from "../../constants/sports";
 
 export default function SlotGrid({ slots, onSelect, selected }) {

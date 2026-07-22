@@ -9,10 +9,7 @@ export default function ClubCard({ club, onSelect }) {
       className="bg-white rounded-2xl border border-[#f0ede6] overflow-hidden cursor-pointer transition-all hover:shadow-lg hover:border-[#1D9E75]/30"
       style={{ animation: "slideUp 0.3s ease" }}
     >
-      <div
-        className="h-28 flex items-center justify-center text-4xl"
-        style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}
-      >
+      <div className="h-28 flex items-center justify-center text-4xl" style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}>
         🏟️
       </div>
       <div className="p-4">
@@ -30,11 +27,7 @@ export default function ClubCard({ club, onSelect }) {
         <div className="flex gap-1.5 flex-wrap mb-3">
           {club.courts.map((c) => {
             const s = getSport(c.sportId);
-            return (
-              <Badge key={c.id} color={s?.color} bg={s?.bg}>
-                {s?.icon} {s?.name}
-              </Badge>
-            );
+            return <Badge key={c.id} color={s?.color} bg={s?.bg}>{s?.icon} {s?.name}</Badge>;
           })}
         </div>
         <div className="flex items-center justify-between pt-3 border-t border-[#f0ede6]">

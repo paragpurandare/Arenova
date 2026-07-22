@@ -1,8 +1,3 @@
-// ─── DASHBOARD LAYOUT ────────────────────────────────────────────────────────
-// Shared layout wrapper for all dashboard pages. Renders the TopNav, a
-// left sidebar with role-appropriate navigation links, and the page content
-// area via <Outlet />. Sidebar links are driven by the `nav` prop so each
-// role page can define its own tabs.
 import { NavLink, Outlet } from "react-router-dom";
 import TopNav from "./TopNav";
 
@@ -10,9 +5,7 @@ export default function DashboardLayout({ nav = [], title }) {
   return (
     <div style={{ minHeight: "100vh", background: "#faf9f6" }}>
       <TopNav />
-
       <div style={{ display: "flex", maxWidth: "1280px", margin: "0 auto" }}>
-        {/* Sidebar */}
         <aside
           style={{
             width: "240px",
@@ -40,7 +33,7 @@ export default function DashboardLayout({ nav = [], title }) {
           <nav style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {nav.map((item) => (
               <NavLink
-                key={item.to}
+                key={item.to + item.label}
                 to={item.to}
                 end={item.end}
                 style={({ isActive }) => ({
@@ -63,8 +56,6 @@ export default function DashboardLayout({ nav = [], title }) {
             ))}
           </nav>
         </aside>
-
-        {/* Main content */}
         <main style={{ flex: 1, padding: "32px", minWidth: 0 }}>
           <Outlet />
         </main>

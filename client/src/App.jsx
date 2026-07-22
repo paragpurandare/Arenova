@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, ROLES } from "./context/AuthContext";
 import { PaymentProvider } from "./context/PaymentContext";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
@@ -41,48 +41,50 @@ const ROLE_TITLES = {
   super: "Admin Portal",
 };
 
-function DashboardPage({ role, children }) {
-  return (
-    <DashboardLayout nav={ROLE_NAV[role] || []} title={ROLE_TITLES[role]}>
-      {children}
-    </DashboardLayout>
-  );
-}
-
 export default function App() {
   return (
     <AuthProvider>
       <PaymentProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
 
-          <Route path="/customer" element={
-            <ProtectedRoute roles={[ROLES.CUSTOMER]}>
-              <DashboardPage role="customer"><CustomerDashboard /></DashboardPage>
-            </ProtectedRoute>
-          } />
+            <Route path="/customer" element={
+              <ProtectedRoute roles={[ROLES.CUSTOMER]}>
+                <DashboardLayout nav={ROLE_NAV.customer} title={ROLE_TITLES.customer}>
+                  <CustomerDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="/manager" element={
-            <ProtectedRoute roles={[ROLES.MANAGER]}>
-              <DashboardPage role="manager"><ManagerDashboard /></DashboardPage>
-            </ProtectedRoute>
-          } />
+            <Route path="/manager" element={
+              <ProtectedRoute roles={[ROLES.MANAGER]}>
+                <DashboardLayout nav={ROLE_NAV.manager} title={ROLE_TITLES.manager}>
+                  <ManagerDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="/owner" element={
-            <ProtectedRoute roles={[ROLES.OWNER]}>
-              <DashboardPage role="owner"><OwnerDashboard /></DashboardPage>
-            </ProtectedRoute>
-          } />
+            <Route path="/owner" element={
+              <ProtectedRoute roles={[ROLES.OWNER]}>
+                <DashboardLayout nav={ROLE_NAV.owner} title={ROLE_TITLES.owner}>
+                  <OwnerDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="/super" element={
-            <ProtectedRoute roles={[ROLES.SUPER]}>
-              <DashboardPage role="super"><AdminDashboard /></DashboardPage>
-            </ProtectedRoute>
-          } />
+            <Route path="/super" element={
+              <ProtectedRoute roles={[ROLES.SUPER]}>
+                <DashboardLayout nav={ROLE_NAV.super} title={ROLE_TITLES.super}>
+                  <AdminDashboard />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
       </PaymentProvider>
     </AuthProvider>
   );

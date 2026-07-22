@@ -37,34 +37,27 @@ export default function AdminDashboard() {
             <StatCard label="Monthly Revenue" value="₹4.8L" icon={IndianRupee} color="#993556" bg="#FBEAF0" />
             <StatCard label="Pending Approvals" value={pendingClubs.length} icon={Clock} color="#BA7517" bg="#FAEEDA" />
           </div>
-
           <div className="bg-white rounded-2xl border border-[#f0ede6] p-6 mb-6">
             <h3 className="font-bold text-base text-[#08060d] mb-5">Platform Revenue (₹k)</h3>
             <div className="flex items-end gap-2 h-44">
-              {REVENUE_DATA.map((val, i) => {
-                const maxRev = Math.max(...REVENUE_DATA);
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                    <div className="w-full max-w-[32px] rounded-t-md transition-all duration-300" style={{ height: `${(val / maxRev) * 100}%`, background: "linear-gradient(180deg, #993556, #FBEAF0)" }} />
-                    <span className="text-[10px] text-gray-500">{MONTHS[i]}</span>
-                  </div>
-                );
-              })}
+              {REVENUE_DATA.map((val, i) => { const maxRev = Math.max(...REVENUE_DATA); return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className="w-full max-w-[32px] rounded-t-md transition-all duration-300" style={{ height: `${(val / maxRev) * 100}%`, background: "linear-gradient(180deg, #993556, #FBEAF0)" }} />
+                  <span className="text-[10px] text-gray-500">{MONTHS[i]}</span>
+                </div>
+              ); })}
             </div>
           </div>
-
           <div className="bg-white rounded-2xl border border-[#f0ede6] overflow-hidden">
             <div className="p-4.5 border-b-[1.5px] border-[#f0ede6]"><h3 className="font-bold text-base m-0">All Clubs</h3></div>
             <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-500 bg-[#faf9f6] border-b-[1.5px] border-[#f0ede6]">
-                  <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Club</th>
-                  <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Location</th>
-                  <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Rating</th>
-                  <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Courts</th>
-                  <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Status</th>
-                </tr>
-              </thead>
+              <thead><tr className="text-left text-gray-500 bg-[#faf9f6] border-b-[1.5px] border-[#f0ede6]">
+                <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Club</th>
+                <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Location</th>
+                <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Rating</th>
+                <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Courts</th>
+                <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Status</th>
+              </tr></thead>
               <tbody>
                 {INIT_CLUBS.map((club) => (
                   <tr key={club.id} className="border-b border-[#f0ede6] hover:bg-[#faf9f6] transition-colors">
@@ -85,17 +78,11 @@ export default function AdminDashboard() {
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
           {pendingClubs.map((club) => (
             <div key={club.id} className="bg-white rounded-2xl border border-[#f0ede6] p-5">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-bold text-base m-0">{club.name}</h4>
-                <Badge color="#BA7517" bg="#FAEEDA">Pending</Badge>
-              </div>
+              <div className="flex justify-between items-center mb-3"><h4 className="font-bold text-base m-0">{club.name}</h4><Badge color="#BA7517" bg="#FAEEDA">Pending</Badge></div>
               <div className="text-sm text-gray-500 mb-1.5">📍 {club.location}</div>
               <div className="text-sm text-gray-500 mb-1.5">👤 Owner: {club.owner}</div>
               <div className="text-sm text-gray-500 mb-4">📅 Submitted: {club.submitted}</div>
-              <div className="flex gap-2">
-                <Button size="sm">Approve</Button>
-                <Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB">Reject</Button>
-              </div>
+              <div className="flex gap-2"><Button size="sm">Approve</Button><Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB">Reject</Button></div>
             </div>
           ))}
         </div>

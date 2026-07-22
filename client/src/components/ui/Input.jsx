@@ -1,6 +1,3 @@
-// ─── INPUT ──────────────────────────────────────────────────────────────────
-// Styled text/number/email/tel input. Passes through all native input props
-// so it works as a drop-in replacement for <input> anywhere in the app.
 export default function Input({ style, ...rest }) {
   return (
     <input

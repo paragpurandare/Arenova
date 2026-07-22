@@ -49,10 +49,10 @@ export function PaymentProvider({ children }) {
           handler: async (response) => {
             try {
               const result = await verifyPayment({
-            orderId,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpayOrderId: response.razorpay_order_id,
-            razorpaySignature: response.razorpay_signature,
+                orderId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
               });
               onSuccess?.(result);
             } catch (err) {

@@ -23,16 +23,10 @@ export default function RazorpayCheckout({ amount, breakdown, onPay, loading }) 
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
         style={{ background: "#1D9E75" }}
       >
-        {loading ? (
-          <Loader2 size={18} className="animate-spin" />
-        ) : (
-          <ShieldCheck size={18} />
-        )}
+        {loading ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
         {loading ? "Processing…" : `Pay ₹${amount} with Razorpay`}
       </button>
-      <p className="text-center text-xs text-gray-400">
-        Secured by Razorpay · Test Mode
-      </p>
+      <p className="text-center text-xs text-gray-400">Secured by Razorpay · Test Mode</p>
     </div>
   );
 }
