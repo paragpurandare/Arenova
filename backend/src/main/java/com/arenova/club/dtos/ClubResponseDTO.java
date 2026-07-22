@@ -19,6 +19,6 @@ public class ClubResponseDTO {
 	private String city;
 	private BigDecimal basePrice;
 	private ClubStatus status;
-	private String ownerName;
+	private String ownerFirstName;
 	private String imageUrl;
 }

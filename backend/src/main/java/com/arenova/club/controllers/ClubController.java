@@ -1,8 +1,11 @@
 package com.arenova.club.controllers;
 
+import java.math.BigDecimal;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,8 +21,8 @@ import com.arenova.common.dtos.ApiResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-
-@RequestMapping("/clubs")
+@CrossOrigin(origins = "http://localhost:5173")
+@RequestMapping("/api/clubs")
 @RequiredArgsConstructor
 
 public class ClubController {
@@ -55,6 +58,29 @@ public class ClubController {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 								.body(new ApiResponse(e.getMessage(), "Failed"));
 								
+		}
+	}
+
+	/**
+	 * GET /api/clubs/nearby?lat=18.5204&lng=73.8567&radiusKm=10
+	 *
+	 * Returns all ACTIVE clubs within the given radius (km) of the
+	 * customer's coordinates, sorted by distance (nearest first).
+	 * Uses the Haversine formula for great-circle distance.
+	 */
+	@GetMapping("/nearby")
+	public ResponseEntity<?> getNearbyClubs(@RequestParam BigDecimal lat,
+	                                        @RequestParam BigDecimal lng,
+	                                        @RequestParam(required = false) Double radiusKm) {
+
+		try {
+			return ResponseEntity.ok(clubService.getNearbyClubs(lat, lng, radiusKm));
+		}
+		catch(Exception e) {
+
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+								.body(new ApiResponse(e.getMessage(), "Failed"));
+
 		}
 	}
 }
