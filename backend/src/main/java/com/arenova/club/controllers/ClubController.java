@@ -1,5 +1,7 @@
 package com.arenova.club.controllers;
 
+import java.math.BigDecimal;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +58,29 @@ public class ClubController {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 								.body(new ApiResponse(e.getMessage(), "Failed"));
 								
+		}
+	}
+
+	/**
+	 * GET /api/clubs/nearby?lat=18.5204&lng=73.8567&radiusKm=10
+	 *
+	 * Returns all ACTIVE clubs within the given radius (km) of the
+	 * customer's coordinates, sorted by distance (nearest first).
+	 * Uses the Haversine formula for great-circle distance.
+	 */
+	@GetMapping("/nearby")
+	public ResponseEntity<?> getNearbyClubs(@RequestParam BigDecimal lat,
+	                                        @RequestParam BigDecimal lng,
+	                                        @RequestParam(required = false) Double radiusKm) {
+
+		try {
+			return ResponseEntity.ok(clubService.getNearbyClubs(lat, lng, radiusKm));
+		}
+		catch(Exception e) {
+
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+								.body(new ApiResponse(e.getMessage(), "Failed"));
+
 		}
 	}
 }
