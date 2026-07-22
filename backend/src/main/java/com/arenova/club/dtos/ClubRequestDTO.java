@@ -1,8 +1,6 @@
 package com.arenova.club.dtos;
 
 import java.math.BigDecimal;
-
-import com.arenova.club.enums.ClubStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
