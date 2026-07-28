@@ -41,7 +41,9 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, unique = true, length = 10)
+    // Optional: the current registration form only collects name/email/password/role.
+    // MySQL's unique index still permits multiple NULLs, so this stays safely unique.
+    @Column(unique = true, length = 15)
     private String phone;
 
     @Column(length = 255)

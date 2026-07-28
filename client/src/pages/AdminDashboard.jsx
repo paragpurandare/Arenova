@@ -6,8 +6,10 @@ import Button from "../components/ui/Button";
 import TabBar from "../components/ui/TabBar";
 import StatCard from "../components/common/StatCard";
 
-export default function AdminDashboard() {
-  const [tab, setTab] = useState("overview");
+export default function AdminDashboard({ tab: tabProp, setTab: setTabProp } = {}) {
+  const [localTab, setLocalTab] = useState("overview");
+  const tab = tabProp ?? localTab;
+  const setTab = setTabProp ?? setLocalTab;
 
   const tabs = [
     { key: "overview", label: "Platform Overview", icon: "🌐" },
@@ -15,10 +17,16 @@ export default function AdminDashboard() {
     { key: "users", label: "Users", icon: "👥" },
   ];
 
-  const pendingClubs = [
+  const [pendingClubs, setPendingClubs] = useState([
     { id: 201, name: "PowerPlay Arena", location: "Hadapsar, Pune", owner: "Vikram Singh", submitted: "Jun 08" },
     { id: 202, name: "Champions Court", location: "Kothrud, Pune", owner: "Meera Desai", submitted: "Jun 09" },
-  ];
+  ]);
+
+  // Approving or rejecting just removes the club from the pending queue
+  // (there's no separate "approved/rejected" list shown elsewhere yet).
+  const handleClubDecision = (clubId) => {
+    setPendingClubs((prev) => prev.filter((c) => c.id !== clubId));
+  };
 
   return (
     <div>
@@ -82,7 +90,7 @@ export default function AdminDashboard() {
               <div className="text-sm text-gray-500 mb-1.5">📍 {club.location}</div>
               <div className="text-sm text-gray-500 mb-1.5">👤 Owner: {club.owner}</div>
               <div className="text-sm text-gray-500 mb-4">📅 Submitted: {club.submitted}</div>
-              <div className="flex gap-2"><Button size="sm">Approve</Button><Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB">Reject</Button></div>
+              <div className="flex gap-2"><Button size="sm" onClick={() => handleClubDecision(club.id)}>Approve</Button><Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB" onClick={() => handleClubDecision(club.id)}>Reject</Button></div>
             </div>
           ))}
         </div>

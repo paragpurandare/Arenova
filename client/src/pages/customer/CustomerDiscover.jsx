@@ -3,7 +3,7 @@
 // nearby-clubs endpoint (Haversine distance), a sport filter bar, and a club
 // card grid. Clicking a club opens the booking modal with slot grid + equipment.
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../services/api";
 import { SPORTS_LIST, getSport } from "../../constants/sports";
 import { INIT_CLUBS, SLOT_MAP, DAYS, DATES, MONTHS } from "../../constants/mockData";
 import Badge from "../../components/ui/Badge";
@@ -12,7 +12,7 @@ import Modal from "../../components/ui/Modal";
 import SlotGrid from "../../components/ui/SlotGrid";
 import EquipmentPicker from "../../components/ui/EquipmentPicker";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
 
 export default function CustomerDiscover() {
   const [clubs, setClubs] = useState([]);
@@ -24,27 +24,46 @@ export default function CustomerDiscover() {
   const [equipOpen, setEquipOpen] = useState(false);
   const [equipment, setEquipment] = useState([]);
 
-  // Fetch nearby clubs from the backend. Falls back to mock data if the API
-  // is unavailable (e.g. backend not running during frontend-only dev).
+  // Request browser geolocation and fetch nearby clubs only when the user
+  // grants permission. If permission is denied or geolocation is unavailable
+  // we fall back to mock data so the UI remains usable.
   useEffect(() => {
-    fetchNearbyClubs();
-  }, []);
+    const requestLocationAndFetch = () => {
+      setLoading(true);
+      if (!navigator?.geolocation) {
+        console.warn("Geolocation not available - using mock data");
+        setClubs(INIT_CLUBS);
+        setLoading(false);
+        return;
+      }
 
-  const fetchNearbyClubs = async () => {
-    setLoading(true);
-    try {
-      // Pune coordinates as default user location for the demo.
-      const { data } = await axios.get(`${API}/api/clubs/nearby`, {
-        params: { lat: 18.5204, lng: 73.8567, radiusKm: 10 },
-      });
-      setClubs(data);
-    } catch {
-      // Backend not reachable — use mock data so the UI is still functional.
-      setClubs(INIT_CLUBS);
-    } finally {
-      setLoading(false);
-    }
-  };
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          try {
+            const params = { lat, lng, radiusKm: 10 };
+            console.debug("fetchNearbyClubs: calling", "/clubs/nearby", "params:", params);
+            const { data } = await api.get("/clubs/nearby", { params });
+            console.debug("fetchNearbyClubs: response data:", data);
+            setClubs(data);
+          } catch (err) {
+            console.error("fetchNearbyClubs: request failed — using mock data", err);
+            setClubs(INIT_CLUBS);
+          } finally {
+            setLoading(false);
+          }
+        },
+        (err) => {
+          console.warn("Geolocation permission denied or error - using mock data", err);
+          setClubs(INIT_CLUBS);
+          setLoading(false);
+        },
+        { enableHighAccuracy: false, timeout: 10000 }
+      );
+    };
+
+    requestLocationAndFetch();
+  }, []);
 
   // Filter clubs by selected sport (if any).
   const filteredClubs = activeSport

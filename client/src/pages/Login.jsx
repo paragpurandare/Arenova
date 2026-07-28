@@ -14,7 +14,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function Login() {
-  const { login, register, loginAsRole } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
   const [selectedRole, setSelectedRole] = useState(ROLES.CUSTOMER);
@@ -29,16 +29,18 @@ export default function Login() {
     setError(null);
     setLoading(true);
     try {
+      // Real backend call only - no silent "fake login" fallback here.
+      // If this fails, the error below is shown and we do NOT navigate,
+      // otherwise the user ends up "logged in" with no JWT and every
+      // later API call would fail with 401.
       if (mode === "register") {
-        try { await register({ name, email, password, role: selectedRole }); }
-        catch { loginAsRole(selectedRole, name); }
+        await register({ name, email, password, role: selectedRole });
       } else {
-        try { await login(email, password); }
-        catch { loginAsRole(selectedRole, name || email); }
+        await login(email, password);
       }
       navigate(`/${selectedRole}`);
     } catch (err) {
-      setError(err.response?.data?.message || "Authentication failed");
+      setError(err.response?.data?.message || "Authentication failed. Please check your details and try again.");
     } finally {
       setLoading(false);
     }
@@ -105,7 +107,7 @@ export default function Login() {
           </Button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-5">Demo mode — pick any role to explore that dashboard.</p>
+        <p className="text-center text-xs text-gray-400 mt-5">Sign in or register to access your dashboard.</p>
       </div>
     </div>
   );

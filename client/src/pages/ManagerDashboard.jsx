@@ -11,12 +11,20 @@ import InventoryTable from "../components/manager/InventoryTable";
 import SlotBlockerModal from "../components/manager/SlotBlockerModal";
 import RentalReturnModal from "../components/manager/RentalReturnModal";
 
-export default function ManagerDashboard() {
-  const [tab, setTab] = useState("overview");
+export default function ManagerDashboard({ tab: tabProp, setTab: setTabProp } = {}) {
+  const [localTab, setLocalTab] = useState("overview");
+  const tab = tabProp ?? localTab;
+  const setTab = setTabProp ?? setLocalTab;
   const [configCourt, setConfigCourt] = useState(null);
   const [blockCourt, setBlockCourt] = useState(null);
   const [returnRental, setReturnRental] = useState(null);
   const [inventory, setInventory] = useState(EQUIPMENT_CATALOG);
+
+  // Local copies of the mock courts/rentals so the modals below can
+  // actually change something on screen instead of being no-ops.
+  const [courts, setCourts] = useState(INIT_CLUBS[0].courts);
+  const [rentals, setRentals] = useState(RENTAL_ORDERS);
+  const [bookings, setBookings] = useState(MOCK_BOOKINGS);
 
   const tabs = [
     { key: "overview", label: "Overview", icon: "📊" },
@@ -26,10 +34,51 @@ export default function ManagerDashboard() {
     { key: "rentals", label: "Rentals", icon: "🔄" },
   ];
 
-  const todayBookings = MOCK_BOOKINGS.filter((b) => b.status === "confirmed");
+  const todayBookings = bookings.filter((b) => b.status === "confirmed");
 
   const handleRestock = (id, delta) => {
     setInventory((prev) => prev.map((e) => e.id === id ? { ...e, stock: Math.max(0, e.stock + delta) } : e));
+  };
+
+  // Adds a blank equipment item the manager can then rename/restock.
+  // (There's no dedicated "new item" form yet, so we seed sensible defaults.)
+  const handleAddInventoryItem = () => {
+    const newItem = {
+      id: `eq-${Date.now()}`,
+      name: "New Equipment",
+      sportId: inventory[0]?.sportId,
+      icon: "🎽",
+      pricePerHour: 0,
+      stock: 0,
+      condition: "Good",
+    };
+    setInventory((prev) => [...prev, newItem]);
+  };
+
+  const handleDeleteInventoryItem = (id) => {
+    setInventory((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  // Persist the edited open/close hours, slot size, etc. back onto the court.
+  const handleSaveCourtConfig = (court, config) => {
+    setCourts((prev) => prev.map((c) => (c.id === court.id ? { ...c, config } : c)));
+  };
+
+  // No dedicated "blocked slots" list in the UI yet, so we just confirm
+  // the block was recorded rather than silently doing nothing.
+  const handleBlockCourt = (court, blockInfo) => {
+    alert(`${court.name} blocked on ${blockInfo.date} from ${blockInfo.startTime} to ${blockInfo.endTime}.`);
+  };
+
+  const handleReturnRental = (rental) => {
+    setRentals((prev) => prev.map((r) => (r.id === rental.id ? { ...r, status: "returned" } : r)));
+  };
+
+  // Approve turns a pending booking into confirmed; reject cancels it.
+  const handleBookingDecision = (bookingId, decision) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: decision } : b))
+    );
   };
 
   return (
@@ -45,8 +94,8 @@ export default function ManagerDashboard() {
         <div>
           <div className="grid gap-4 mb-7" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             <StatCard label="Today's Bookings" value={todayBookings.length} icon={CalendarCheck} color="#1D9E75" bg="#E1F5EE" />
-            <StatCard label="Active Rentals" value={RENTAL_ORDERS.filter((r) => r.status === "active").length} icon={Backpack} color="#185FA5" bg="#E6F1FB" />
-            <StatCard label="Pending Approvals" value={MOCK_BOOKINGS.filter((b) => b.status === "pending").length} icon={Clock} color="#BA7517" bg="#FAEEDA" />
+            <StatCard label="Active Rentals" value={rentals.filter((r) => r.status === "active").length} icon={Backpack} color="#185FA5" bg="#E6F1FB" />
+            <StatCard label="Pending Approvals" value={bookings.filter((b) => b.status === "pending").length} icon={Clock} color="#BA7517" bg="#FAEEDA" />
             <StatCard label="Revenue Today" value="₹3,200" icon={IndianRupee} color="#993556" bg="#FBEAF0" />
           </div>
           <div className="bg-white rounded-2xl border border-[#f0ede6] p-5">
@@ -74,7 +123,7 @@ export default function ManagerDashboard() {
               <th className="p-3.5 font-bold uppercase text-xs tracking-wide">Action</th>
             </tr></thead>
             <tbody>
-              {MOCK_BOOKINGS.map((b) => (
+              {bookings.map((b) => (
                 <tr key={b.id} className="border-b border-[#f0ede6] hover:bg-[#faf9f6] transition-colors">
                   <td className="p-3.5 font-bold text-[#08060d]">{b.id}</td>
                   <td className="p-3.5 text-gray-600">{b.user}</td>
@@ -82,7 +131,7 @@ export default function ManagerDashboard() {
                   <td className="p-3.5 text-gray-600">{b.court}</td>
                   <td className="p-3.5 text-gray-600">{b.time}</td>
                   <td className="p-3.5"><Badge color={STATUS_COLOR[b.status]} bg={STATUS_BG[b.status]}>{b.status}</Badge></td>
-                  <td className="p-3.5">{b.status === "pending" ? (<div className="flex gap-1.5"><Button size="sm">Approve</Button><Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB">Reject</Button></div>) : <span className="text-xs text-gray-400">—</span>}</td>
+                  <td className="p-3.5">{b.status === "pending" ? (<div className="flex gap-1.5"><Button size="sm" onClick={() => handleBookingDecision(b.id, "confirmed")}>Approve</Button><Button size="sm" variant="outline" color="#A32D2D" bg="#FCEBEB" onClick={() => handleBookingDecision(b.id, "cancelled")}>Reject</Button></div>) : <span className="text-xs text-gray-400">—</span>}</td>
                 </tr>
               ))}
             </tbody>
@@ -92,7 +141,7 @@ export default function ManagerDashboard() {
 
       {tab === "courts" && (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-          {INIT_CLUBS[0].courts.map((court) => { const sport = getSport(court.sportId); return (
+          {courts.map((court) => { const sport = getSport(court.sportId); return (
             <div key={court.id} className="bg-white rounded-2xl border border-[#f0ede6] p-4.5">
               <div className="flex justify-between items-center mb-2.5"><div className="text-3xl">{sport?.icon}</div>
                 <Badge color={court.config.active ? "#0F6E56" : "#888"} bg={court.config.active ? "#E1F5EE" : "#f0ede6"}>{court.config.active ? "Active" : "Inactive"}</Badge>
@@ -109,11 +158,11 @@ export default function ManagerDashboard() {
         </div>
       )}
 
-      {tab === "equipment" && <InventoryTable items={inventory} onAdd={() => {}} onRestock={handleRestock} onDelete={() => {}} />}
+      {tab === "equipment" && <InventoryTable items={inventory} onAdd={handleAddInventoryItem} onRestock={handleRestock} onDelete={handleDeleteInventoryItem} />}
 
       {tab === "rentals" && (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))" }}>
-          {RENTAL_ORDERS.map((rental) => (
+          {rentals.map((rental) => (
             <div key={rental.id} className="bg-white rounded-2xl border border-[#f0ede6] p-5">
               <div className="flex justify-between items-center mb-3.5"><span className="text-base font-bold text-[#08060d]">{rental.id}</span><Badge color={STATUS_COLOR[rental.status]} bg={STATUS_BG[rental.status]}>{rental.status}</Badge></div>
               <div className="mb-3.5"><div className="text-xs text-gray-500 mb-1">Customer: <span className="font-semibold text-[#08060d]">{rental.user}</span></div>{rental.items.map((item, i) => (<div key={i} className="text-sm text-gray-600 mb-0.5">• {item}</div>))}</div>
@@ -126,9 +175,9 @@ export default function ManagerDashboard() {
         </div>
       )}
 
-      <CourtConfigModal open={!!configCourt} onClose={() => setConfigCourt(null)} court={configCourt} onSave={() => {}} />
-      <SlotBlockerModal open={!!blockCourt} onClose={() => setBlockCourt(null)} court={blockCourt} onBlock={() => {}} />
-      <RentalReturnModal open={!!returnRental} onClose={() => setReturnRental(null)} rental={returnRental} onReturn={() => {}} />
+      <CourtConfigModal open={!!configCourt} onClose={() => setConfigCourt(null)} court={configCourt} onSave={handleSaveCourtConfig} />
+      <SlotBlockerModal open={!!blockCourt} onClose={() => setBlockCourt(null)} court={blockCourt} onBlock={handleBlockCourt} />
+      <RentalReturnModal open={!!returnRental} onClose={() => setReturnRental(null)} rental={returnRental} onReturn={handleReturnRental} />
     </div>
   );
 }

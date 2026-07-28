@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Search, Dumbbell, Sparkles, MapPin } from "lucide-react";
 import { SPORTS_LIST, getSport, STATUS_BG, STATUS_COLOR } from "../constants/sports";
 import { INIT_CLUBS, SLOT_MAP, DAYS, DATES, MONTHS, MOCK_BOOKINGS, RENTAL_ORDERS } from "../constants/mockData";
@@ -10,11 +10,14 @@ import SlotGrid from "../components/ui/SlotGrid";
 import EquipmentPicker from "../components/ui/EquipmentPicker";
 import ClubCard from "../components/customer/ClubCard";
 import BookingSummaryModal from "../components/customer/BookingSummaryModal";
+import CustomerDiscover from "./customer/CustomerDiscover";
 import { usePayment } from "../context/PaymentContext";
 import { useAuth } from "../context/AuthContext";
 
-export default function CustomerDashboard() {
-  const [tab, setTab] = useState("discover");
+export default function CustomerDashboard({ tab: tabProp, setTab: setTabProp } = {}) {
+  const [localTab, setLocalTab] = useState("discover");
+  const tab = tabProp ?? localTab;
+  const setTab = setTabProp ?? setLocalTab;
   const [clubs, setClubs] = useState(INIT_CLUBS);
   const [activeSport, setActiveSport] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,34 +67,7 @@ export default function CustomerDashboard() {
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
-      {tab === "discover" && (
-        <div>
-          <div className="flex gap-3 mb-6">
-            <div className="relative flex-1">
-              <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Search clubs or locations..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-xl border-[1.5px] border-[#e5e4e7] bg-white text-sm outline-none transition-all focus:border-[#1D9E75] focus:shadow-[0_0_0_3px_rgba(29,158,117,0.12)]" />
-            </div>
-          </div>
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-            <button onClick={() => setActiveSport(null)} className={`px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition-all ${activeSport === null ? "bg-[#08060d] text-white" : "bg-white text-gray-500 shadow-sm"}`}>All Sports</button>
-            {SPORTS_LIST.map((sport) => {
-              const isActive = activeSport === sport.id;
-              return (
-                <button key={sport.id} onClick={() => setActiveSport(isActive ? null : sport.id)} className="px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap flex items-center gap-1.5 transition-all"
-                  style={isActive ? { background: sport.color, color: "#fff" } : { background: sport.bg, color: sport.color, border: `1.5px solid ${sport.color}33` }}>
-                  <span>{sport.icon}</span> {sport.name}
-                </button>
-              );
-            })}
-          </div>
-          <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
-            {filteredClubs.map((club) => (
-              <ClubCard key={club.id} club={club} onSelect={() => { setBookingClub(club); setSelectedSlot(null); setSelectedCourt(club.courts?.[0]); }} />
-            ))}
-          </div>
-        </div>
-      )}
+      {tab === "discover" && <CustomerDiscover />}
 
       {tab === "bookings" && (
         <div>
@@ -175,10 +151,12 @@ export default function CustomerDashboard() {
               <h3 className="text-lg font-bold m-0">{bookingClub.name}</h3>
               <p className="text-sm text-gray-500 mt-1 flex items-center gap-1"><MapPin size={13} /> {bookingClub.location} · ₹{bookingClub.price}/hr</p>
               <div className="flex gap-1.5 flex-wrap mt-2">
-                {bookingClub.courts?.map((court) => { const sport = getSport(court.sportId); return (
-                  <button key={court.id} onClick={() => setSelectedCourt(court)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedCourt?.id === court.id ? "text-white" : ""}`}
-                    style={selectedCourt?.id === court.id ? { background: sport?.color } : { background: sport?.bg, color: sport?.color }}>{sport?.icon} {court.name}</button>
-                ); })}
+                {bookingClub.courts?.map((court) => {
+                  const sport = getSport(court.sportId); return (
+                    <button key={court.id} onClick={() => setSelectedCourt(court)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${selectedCourt?.id === court.id ? "text-white" : ""}`}
+                      style={selectedCourt?.id === court.id ? { background: sport?.color } : { background: sport?.bg, color: sport?.color }}>{sport?.icon} {court.name}</button>
+                  );
+                })}
               </div>
             </div>
             <div className="flex gap-1.5 mb-4 overflow-x-auto">

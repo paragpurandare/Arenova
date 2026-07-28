@@ -53,19 +53,13 @@ export function AuthProvider({ children }) {
     return profile;
   };
 
-  const loginAsRole = (role, name = "Guest User") => {
-    const profile = { name, role, email: "" };
-    setUser(profile);
-    return profile;
-  };
-
   const logout = () => {
     setUser(null);
     setToken(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, loginAsRole, logout }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

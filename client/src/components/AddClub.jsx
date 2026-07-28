@@ -9,10 +9,11 @@
 // handleLocationUpdate → form state → payload on submit.
 import React, { useState } from "react";
 import MapModalWrapper from "./MapModalWrapper";
-import axios from "axios";
 import Field from "./ui/Field";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
+import { useAuth } from "../context/AuthContext";
+import { createClub } from "../services/clubService";
 
 const AddClub = ({ embedded = false, onSuccess }) => {
     // Stores all form values. Location fields are populated by the map's
@@ -39,10 +40,13 @@ const AddClub = ({ embedded = false, onSuccess }) => {
     const [submitting, setSubmitting] = useState(false);
     const [feedback, setFeedback] = useState(null);
 
+    const { user, token } = useAuth();
+
     // Called by MapModalWrapper when the map pin drops or is dragged. Uses
     // Ola Maps reverse-geocode API to turn lat/lng into structured address.
     const handleLocationUpdate = async (lat, lng) => {
         const apiKey = import.meta.env.VITE_OLAMAPS_API_KEY;
+
         try {
             const res = await fetch(
                 `https://api.olamaps.io/places/v1/reverse-geocode?latlng=${lat},${lng}&api_key=${apiKey}`
@@ -79,6 +83,21 @@ const AddClub = ({ embedded = false, onSuccess }) => {
         setSubmitting(true);
         setFeedback(null);
 
+        const authToken = token || localStorage.getItem("arenova_jwt");
+        const ownerId = user?.ownerId || user?.id || user?.userId || user?._id || user?.owner?.id;
+
+        if (!authToken) {
+            setFeedback({ type: "error", msg: "Please log in again before creating a club." });
+            setSubmitting(false);
+            return;
+        }
+
+        if (!ownerId) {
+            setFeedback({ type: "error", msg: "Owner profile could not be resolved. Please log in again." });
+            setSubmitting(false);
+            return;
+        }
+
         const payload = {
             name: form.clubName,
             description: form.description,
@@ -92,7 +111,7 @@ const AddClub = ({ embedded = false, onSuccess }) => {
             placeId: form.placeId,
             imageUrl: form.imageUrl || "https://images.pexels.com/photos/209977/pexels-photo-209977.jpeg",
             basePrice: Number(form.basePrice) || 0,
-            ownerId: 1,
+            ownerId,
             isSelfManaged: form.managementType === "SELF",
             manager: form.managementType === "MANAGER" ? {
                 name: form.managerName,
@@ -102,11 +121,11 @@ const AddClub = ({ embedded = false, onSuccess }) => {
         };
 
         try {
-            await axios.post("http://localhost:8080/api/clubs", payload);
+            await createClub(payload);
             setFeedback({ type: "success", msg: "Club registered successfully!" });
             onSuccess?.();
         } catch (err) {
-            const msg = err.response?.data?.message || "Server error. Is the backend running?";
+            const msg = err.response?.data?.message || err.response?.data?.error || "Server error. Is the backend running?";
             setFeedback({ type: "error", msg });
         } finally {
             setSubmitting(false);

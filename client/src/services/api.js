@@ -2,6 +2,8 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
+console.debug("[api] baseURL:", BASE_URL);
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
@@ -9,6 +11,9 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("arenova_jwt");
+  if (!config.headers) {
+    config.headers = {};
+  }
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

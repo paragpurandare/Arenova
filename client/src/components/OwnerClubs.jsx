@@ -1,23 +1,23 @@
-import axios from "axios";
 import { useEffect, useState } from "react";
+import api from "../services/api";
 
 function OwnerClubs() {
-    
+
     const [clubs, setClubs] = useState([]);
 
     useEffect(() => {
         getData();
-    },[])
+    }, [])
 
     const getData = () => {
-     
-        axios.get("http://localhost:8080/api/clubs", {
+
+        api.get("/clubs", {
             params: {
                 ownerId: 1
             }
         }).then((result) => {
 
-            if(result.data != null) {
+            if (result.data != null) {
                 console.log(result.data);
                 setClubs(result.data);
             }
@@ -29,7 +29,7 @@ function OwnerClubs() {
             console.log(err);
         })
     }
-    return ( 
+    return (
 
         <div>
             <div>
@@ -64,7 +64,7 @@ function OwnerClubs() {
                 </table>
             </div>
         </div>
-     );
+    );
 }
 
 export default OwnerClubs;

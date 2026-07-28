@@ -8,10 +8,26 @@ import TabBar from "../components/ui/TabBar";
 import StatCard from "../components/common/StatCard";
 import RevenueChart from "../components/owner/RevenueChart";
 import AssignManagerModal from "../components/owner/AssignManagerModal";
+import AddClubModal from "../components/owner/AddClubModal";
+import AddClub from "../components/AddClub";
 
-export default function OwnerDashboard() {
-  const [tab, setTab] = useState("overview");
+export default function OwnerDashboard({ tab: tabProp, setTab: setTabProp } = {}) {
+  const [localTab, setLocalTab] = useState("overview");
+  const tab = tabProp ?? localTab;
+  const setTab = setTabProp ?? setLocalTab;
   const [assignFor, setAssignFor] = useState(null);
+  const [showAddClub, setShowAddClub] = useState(false);
+
+  // Local copy of the mock clubs so assigning a manager actually updates
+  // the screen (the original INIT_CLUBS constant is never mutated directly).
+  const [clubs, setClubs] = useState(INIT_CLUBS);
+
+  // Called when the owner confirms a manager pick in AssignManagerModal.
+  const handleAssignManager = (club, manager) => {
+    setClubs((prev) =>
+      prev.map((c) => (c.id === club.id ? { ...c, managerId: manager.id } : c))
+    );
+  };
 
   const tabs = [
     { key: "overview", label: "Overview", icon: "📊" },
@@ -23,7 +39,7 @@ export default function OwnerDashboard() {
     <div>
       <div className="flex justify-between items-start mb-7">
         <div><h1 className="text-3xl font-extrabold text-[#08060d] m-0">Owner Dashboard</h1><p className="text-sm text-gray-500 mt-1.5">Manage your clubs, revenue, and manager assignments.</p></div>
-        <Button>+ Add New Club</Button>
+        <Button onClick={() => setShowAddClub(true)}>+ Add New Club</Button>
       </div>
 
       <TabBar tabs={tabs} active={tab} onChange={setTab} />
@@ -31,10 +47,10 @@ export default function OwnerDashboard() {
       {tab === "overview" && (
         <div>
           <div className="grid gap-4 mb-7" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
-            <StatCard label="Total Clubs" value={INIT_CLUBS.length} icon={Building2} color="#1D9E75" bg="#E1F5EE" />
+            <StatCard label="Total Clubs" value={clubs.length} icon={Building2} color="#1D9E75" bg="#E1F5EE" />
             <StatCard label="Monthly Revenue" value="₹1,24,000" icon={IndianRupee} color="#993556" bg="#FBEAF0" />
             <StatCard label="Active Managers" value={MANAGERS_POOL.length} icon={Users} color="#185FA5" bg="#E6F1FB" />
-            <StatCard label="Total Courts" value={INIT_CLUBS.reduce((a, c) => a + c.courts.length, 0)} icon={Trophy} color="#BA7517" bg="#FAEEDA" />
+            <StatCard label="Total Courts" value={clubs.reduce((a, c) => a + c.courts.length, 0)} icon={Trophy} color="#BA7517" bg="#FAEEDA" />
           </div>
           <RevenueChart />
         </div>
@@ -42,7 +58,7 @@ export default function OwnerDashboard() {
 
       {tab === "clubs" && (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
-          {INIT_CLUBS.map((club) => (
+          {clubs.map((club) => (
             <div key={club.id} className="bg-white rounded-2xl border border-[#f0ede6] overflow-hidden">
               <div className="h-24 flex items-center justify-center text-4xl" style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}>🏟️</div>
               <div className="p-4.5">
@@ -61,20 +77,26 @@ export default function OwnerDashboard() {
 
       {tab === "managers" && (
         <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
-          {MANAGERS_POOL.map((m) => { const assignedClub = INIT_CLUBS.find((c) => c.managerId === m.id); return (
-            <div key={m.id} className="bg-white rounded-2xl border border-[#f0ede6] p-5">
-              <div className="flex items-center gap-3 mb-3.5">
-                <div className="w-11 h-11 rounded-full bg-[#E1F5EE] flex items-center justify-center text-lg font-bold text-[#1D9E75]">{m.name.charAt(0)}</div>
-                <div><div className="font-bold text-sm text-[#08060d]">{m.name}</div><div className="text-xs text-gray-500">{m.email}</div></div>
+          {MANAGERS_POOL.map((m) => {
+            const assignedClub = clubs.find((c) => c.managerId === m.id); return (
+              <div key={m.id} className="bg-white rounded-2xl border border-[#f0ede6] p-5">
+                <div className="flex items-center gap-3 mb-3.5">
+                  <div className="w-11 h-11 rounded-full bg-[#E1F5EE] flex items-center justify-center text-lg font-bold text-[#1D9E75]">{m.name.charAt(0)}</div>
+                  <div><div className="font-bold text-sm text-[#08060d]">{m.name}</div><div className="text-xs text-gray-500">{m.email}</div></div>
+                </div>
+                <div className="text-sm text-gray-500 mb-1">Phone: {m.phone}</div>
+                <div className="text-sm text-gray-500">Assigned to: <Badge color={assignedClub ? "#1D9E75" : "#A32D2D"} bg={assignedClub ? "#E1F5EE" : "#FCEBEB"}>{assignedClub ? assignedClub.name : "No club"}</Badge></div>
               </div>
-              <div className="text-sm text-gray-500 mb-1">Phone: {m.phone}</div>
-              <div className="text-sm text-gray-500">Assigned to: <Badge color={assignedClub ? "#1D9E75" : "#A32D2D"} bg={assignedClub ? "#E1F5EE" : "#FCEBEB"}>{assignedClub ? assignedClub.name : "No club"}</Badge></div>
-            </div>
-          ); })}
+            );
+          })}
         </div>
       )}
 
-      <AssignManagerModal open={!!assignFor} onClose={() => setAssignFor(null)} club={assignFor} onAssign={() => {}} />
+      <AssignManagerModal open={!!assignFor} onClose={() => setAssignFor(null)} club={assignFor} onAssign={handleAssignManager} />
+
+      <AddClubModal open={showAddClub} onClose={() => setShowAddClub(false)}>
+        <AddClub embedded onSuccess={() => setShowAddClub(false)} />
+      </AddClubModal>
     </div>
   );
 }
