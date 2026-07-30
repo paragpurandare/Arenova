@@ -17,10 +17,13 @@ import com.arenova.club.dtos.ClubRequestDTO;
 import com.arenova.club.services.ClubService;
 import com.arenova.common.dtos.ApiResponse;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/clubs")
+@SecurityRequirement(name = "bearerAuth")
 @RequiredArgsConstructor
 
 public class ClubController {

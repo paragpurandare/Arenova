@@ -14,4 +14,7 @@ public interface ClubRepository extends JpaRepository<Club, Long> {
 	public Optional<Club> findByIdAndOwnerId(Long Id, Long ownerId); // this we are going to use for edit club
 
 	public List<Club> findByStatus(ClubStatus status); // nearby clubs query
+	
+	
+	public Optional<Club> findById(Long clubId);
 }
