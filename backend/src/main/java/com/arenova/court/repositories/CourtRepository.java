@@ -14,5 +14,7 @@ public interface CourtRepository extends JpaRepository<Court, Long> {
     
     // Find only active courts for customer view
     List<Court> findByClubIdAndActiveTrue(Long clubId);
+
+	List<Court> findAllByActiveTrue();
 	
 }

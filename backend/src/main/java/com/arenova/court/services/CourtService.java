@@ -17,6 +17,7 @@ import com.arenova.court.dtos.CourtResponseDTO;
 import com.arenova.court.entities.Court;
 import com.arenova.court.entities.CourtConfig;
 import com.arenova.court.repositories.CourtRepository;
+import com.arenova.slot.services.SlotService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,8 @@ public class CourtService {
 	private final ClubRepository clubRepo;
 
 	private final CourtRepository courtRepo;
+	
+	private final SlotService slotService;
 	
 	private final ModelMapper modelMapper;
 	
@@ -63,8 +66,10 @@ public class CourtService {
 	    court.setConfig(config);
 	    
 	    
-	    courtRepo.save(court);
-							
+	    Court savedCourt = courtRepo.save(court);
+	    
+	    slotService.generateSlots(savedCourt.getId());
+	    					
 	}
 	
 	public void updateCourt(CourtEditDTO dto, Long courtId) {
@@ -91,7 +96,10 @@ public class CourtService {
 	    config.setMaxPlayers(dto.getMaxPlayers());
 
 	    // 5. Save changes
-	    courtRepo.save(court);
+	    Court savedCourt = courtRepo.save(court);
+	    
+	    slotService.generateSlots(savedCourt.getId());
+	    
 	}
 	
 	
