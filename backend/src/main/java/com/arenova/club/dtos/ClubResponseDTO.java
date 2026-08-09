@@ -15,10 +15,15 @@ public class ClubResponseDTO {
 
 	private Long id;
 	private String name;
-	private String Address;
+	private String address;
 	private String city;
 	private BigDecimal basePrice;
 	private ClubStatus status;
 	private String ownerFirstName;
 	private String imageUrl;
+
+	// Lets the frontend compute "distance from me" for the owner's own
+	// clubs the same way it already does for the customer nearby list.
+	private BigDecimal latitude;
+	private BigDecimal longitude;
 }

@@ -9,8 +9,5 @@ import com.arenova.slot.entities.Slot;
 
 public interface CourtConfigRepository extends JpaRepository<CourtConfig, Long> {
 
-	Optional<CourtConfig> findByCourt_Id(Long courtId);
-
 	
-
 }

@@ -1,281 +1,414 @@
-// ─── CUSTOMER DISCOVER ──────────────────────────────────────────────────────
-// Landing page for customers. Shows nearby clubs fetched from the backend
-// nearby-clubs endpoint (Haversine distance), a sport filter bar, and a club
-// card grid. Clicking a club opens the booking modal with slot grid + equipment.
-import { useEffect, useState } from "react";
-import api from "../../services/api";
-import { SPORTS_LIST, getSport } from "../../constants/sports";
-import { INIT_CLUBS, SLOT_MAP, DAYS, DATES, MONTHS } from "../../constants/mockData";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { fetchNearbyClubs } from "../../services/clubService";
+import { fetchActiveCourts } from "../../services/courtService";
+import { fetchSlots } from "../../services/slotService";
+import { SPORTS_LIST, getSport, getSportByType } from "../../constants/sports";
+import { INIT_CLUBS } from "../../constants/mockData";
+
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import SlotGrid from "../../components/ui/SlotGrid";
 import EquipmentPicker from "../../components/ui/EquipmentPicker";
+import BookingSummaryModal from "../../components/customer/BookingSummaryModal";
 
+// Generate rolling 14-day calendar starting strictly from current moment
+function generateCalendarDays() {
+  const days = [];
+  const today = new Date();
 
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const date = String(d.getDate()).padStart(2, "0");
+
+    days.push({
+      isoDate: `${year}-${month}-${date}`,
+      dayName: d.toLocaleDateString("en-IN", { weekday: "short" }),
+      dayNumber: d.getDate(),
+      monthName: d.toLocaleDateString("en-IN", { month: "short" }),
+      isToday: i === 0
+    });
+  }
+  return days;
+}
 
 export default function CustomerDiscover() {
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSport, setActiveSport] = useState(null);
+
+  // Booking Modal State
   const [bookingClub, setBookingClub] = useState(null);
+  const [courts, setCourts] = useState([]);
+  const [loadCourts, setLoadCourts] = useState(false);
+  const [selectedCourt, setSelectedCourt] = useState(null);
+
+  // Date Calendar
+  const calendarDays = useMemo(() => generateCalendarDays(), []);
+  const [selectedDate, setSelectedDate] = useState(calendarDays[0].isoDate);
+
+  // Slot Management State
+  const [slots, setSlots] = useState([]);
+  const [loadSlots, setLoadSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(1);
+
+  // Equipment & Payment
   const [equipOpen, setEquipOpen] = useState(false);
   const [equipment, setEquipment] = useState([]);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
-  // Request browser geolocation and fetch nearby clubs only when the user
-  // grants permission. If permission is denied or geolocation is unavailable
-  // we fall back to mock data so the UI remains usable.
+  // Load nearby clubs on mount
   useEffect(() => {
-    const requestLocationAndFetch = () => {
-      setLoading(true);
+    let isMounted = true;
+
+    async function loadClubs() {
       if (!navigator?.geolocation) {
-        console.warn("Geolocation not available - using mock data");
-        setClubs(INIT_CLUBS);
-        setLoading(false);
+        if (isMounted) {
+          setClubs(INIT_CLUBS);
+          setLoading(false);
+        }
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude: lat, longitude: lng } = pos.coords;
+        async ({ coords }) => {
           try {
-            const params = { lat, lng, radiusKm: 10 };
-            console.debug("fetchNearbyClubs: calling", "/clubs/nearby", "params:", params);
-            const { data } = await api.get("/clubs/nearby", { params });
-            console.debug("fetchNearbyClubs: response data:", data);
-            setClubs(data);
-          } catch (err) {
-            console.error("fetchNearbyClubs: request failed — using mock data", err);
-            setClubs(INIT_CLUBS);
+            const data = await fetchNearbyClubs(coords.latitude, coords.longitude, 10);
+            if (isMounted) setClubs(data?.length ? data : INIT_CLUBS);
+          } catch {
+            if (isMounted) setClubs(INIT_CLUBS);
           } finally {
-            setLoading(false);
+            if (isMounted) setLoading(false);
           }
         },
-        (err) => {
-          console.warn("Geolocation permission denied or error - using mock data", err);
-          setClubs(INIT_CLUBS);
-          setLoading(false);
-        },
-        { enableHighAccuracy: false, timeout: 10000 }
+        () => {
+          if (isMounted) {
+            setClubs(INIT_CLUBS);
+            setLoading(false);
+          }
+        }
       );
-    };
+    }
 
-    requestLocationAndFetch();
+    loadClubs();
+    return () => { isMounted = false; };
   }, []);
 
-  // Filter clubs by selected sport (if any).
-  const filteredClubs = activeSport
-    ? clubs.filter((c) => c.courts?.some((court) => court.sportId === activeSport))
-    : clubs;
+  // Direct Slot Fetcher
+  const getSlots = useCallback(async (courtId, dateStr) => {
+    if (!courtId || !dateStr) return;
+    setLoadSlots(true);
+    setSelectedSlot(null);
+
+    try {
+      const response = await fetchSlots(courtId, dateStr);
+      setSlots(Array.isArray(response) ? response : []);
+    } catch (err) {
+      console.error("API Slot Fetch Error:", err);
+      setSlots([]);
+    } finally {
+      setLoadSlots(false);
+    }
+  }, []);
+
+  // Open modal and immediately load active court & real-time slots
+  const handleOpenBooking = async (club) => {
+    setBookingClub(club);
+    setLoadCourts(true);
+    setSelectedSlot(null);
+    setEquipment([]);
+    const defaultDate = calendarDays[0].isoDate;
+    setSelectedDate(defaultDate);
+
+    try {
+      const activeCourts = await fetchActiveCourts(club.id);
+      const courtList = activeCourts?.length ? activeCourts : club.courts || [];
+      setCourts(courtList);
+
+      if (courtList.length > 0) {
+        const firstCourt = courtList[0];
+        setSelectedCourt(firstCourt);
+        getSlots(firstCourt.id, defaultDate);
+      }
+    } catch (err) {
+      console.error("Court load failed:", err);
+      const fallbackList = club.courts || [];
+      setCourts(fallbackList);
+      if (fallbackList.length > 0) {
+        setSelectedCourt(fallbackList[0]);
+        getSlots(fallbackList[0].id, defaultDate);
+      }
+    } finally {
+      setLoadCourts(false);
+    }
+  };
+
+  // Switch Court
+  const handleSelectCourt = (court) => {
+    setSelectedCourt(court);
+    getSlots(court.id, selectedDate);
+  };
+
+  // Switch Calendar Date
+  const handleSelectDate = (isoDate) => {
+    setSelectedDate(isoDate);
+    if (selectedCourt) {
+      getSlots(selectedCourt.id, isoDate);
+    }
+  };
+
+  const handleCloseBooking = () => {
+    setBookingClub(null);
+    setCourts([]);
+    setSelectedCourt(null);
+    setSlots([]);
+    setSelectedSlot(null);
+    setEquipment([]);
+  };
+
+  const filteredClubs = clubs.filter((club) => {
+    if (!activeSport) return true;
+    if (!club.courts?.length) return true;
+    return club.courts.some((c) => (c.sportsType || c.sportId) === activeSport);
+  });
 
   return (
     <div>
-      {/* ─── Page header ─── */}
-      <div style={{ marginBottom: "28px" }}>
+      <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#08060d", margin: "0 0 6px" }}>
           Discover Nearby Clubs
         </h1>
-        <p style={{ fontSize: "15px", color: "#888" }}>
-          Find and book sports facilities around you in seconds.
+        <p style={{ fontSize: "14px", color: "#666", margin: 0 }}>
+          Live court availability starting from today.
         </p>
       </div>
 
-      {/* ─── Sport filter bar ─── */}
+      {/* Sport Categories */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "24px", overflowX: "auto", paddingBottom: "4px" }}>
-        <button
-          onClick={() => setActiveSport(null)}
-          style={{
-            padding: "8px 16px", borderRadius: "999px", border: "none",
-            background: activeSport === null ? "#08060d" : "#fff",
-            color: activeSport === null ? "#fff" : "#555",
-            fontWeight: 600, fontSize: "13px", cursor: "pointer",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)", whiteSpace: "nowrap",
-          }}
-        >
+        <Pill active={activeSport === null} color="#08060d" onClick={() => setActiveSport(null)}>
           All Sports
-        </button>
-        {SPORTS_LIST.map((sport) => {
-          const isActive = activeSport === sport.id;
-          return (
-            <button
-              key={sport.id}
-              onClick={() => setActiveSport(isActive ? null : sport.id)}
-              style={{
-                padding: "8px 16px", borderRadius: "999px",
-                border: isActive ? "none" : `1.5px solid ${sport.color}33`,
-                background: isActive ? sport.color : sport.bg,
-                color: isActive ? "#fff" : sport.color,
-                fontWeight: 600, fontSize: "13px", cursor: "pointer",
-                whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "6px",
-              }}
-            >
-              <span>{sport.icon}</span> {sport.name}
-            </button>
-          );
-        })}
+        </Pill>
+        {SPORTS_LIST.map((sport) => (
+          <Pill
+            key={sport.id}
+            active={activeSport === sport.id}
+            color={sport.color}
+            bg={sport.bg}
+            onClick={() => setActiveSport(activeSport === sport.id ? null : sport.id)}
+          >
+            {sport.icon} {sport.name}
+          </Pill>
+        ))}
       </div>
 
-      {/* ─── Club grid ─── */}
+      {/* Club Grid */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>Loading clubs…</div>
+        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>Loading venues…</div>
       ) : filteredClubs.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No clubs found for this filter.</div>
+        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No active courts found.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
           {filteredClubs.map((club) => (
-            <ClubCard key={club.id} club={club} onBook={() => { setBookingClub(club); setSelectedSlot(null); }} />
+            <ClubCard key={club.id} club={club} onView={() => handleOpenBooking(club)} />
           ))}
         </div>
       )}
 
-      {/* ─── Booking modal ─── */}
-      <Modal open={!!bookingClub} onClose={() => setBookingClub(null)} title="Book a Slot" size="lg">
+      {/* Interactive Booking Modal */}
+      <Modal open={!!bookingClub} onClose={handleCloseBooking} title="Select Date & Time Slot" size="lg">
         {bookingClub && (
           <div>
-            {/* Club summary */}
-            <div style={{ marginBottom: "20px" }}>
+            {/* Header */}
+            <div style={{ marginBottom: "16px" }}>
               <h3 style={{ margin: "0 0 4px", fontSize: "18px", fontWeight: 700 }}>{bookingClub.name}</h3>
-              <p style={{ margin: "0 0 8px", fontSize: "14px", color: "#888" }}>
-                {bookingClub.location || bookingClub.address} · ₹{bookingClub.price || bookingClub.basePrice}/hr
+              <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>
+                📍 {bookingClub.location || bookingClub.address || "Pune"}
               </p>
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {bookingClub.courts?.map((court) => {
-                  const sport = getSport(court.sportId);
+            </div>
+
+            {/* Active Courts Selection */}
+            {loadCourts ? (
+              <p style={{ color: "#888", fontSize: "13px" }}>Loading active courts…</p>
+            ) : (
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                {courts.map((court) => {
+                  const sport = getSportByType(court.sportsType) || getSport(court.sportId);
+                  const isSel = selectedCourt?.id === court.id;
                   return (
-                    <Badge key={court.id} color={sport?.color} bg={sport?.bg}>
-                      {sport?.icon} {court.name}
-                    </Badge>
+                    <button
+                      key={court.id}
+                      onClick={() => handleSelectCourt(court)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        border: "1px solid " + (isSel ? "#1D9E75" : "#e2e8f0"),
+                        background: isSel ? "#1D9E75" : "#f8fafc",
+                        color: isSel ? "#fff" : "#334155",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                      }}
+                    >
+                      {sport?.icon || "🏸"} {court.name || court.type}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Dynamic Date Calendar */}
+            <div style={{ marginBottom: "20px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: "8px" }}>
+                Select Booking Date
+              </div>
+              <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "6px" }}>
+                {calendarDays.map((d) => {
+                  const isSelected = selectedDate === d.isoDate;
+                  return (
+                    <button
+                      key={d.isoDate}
+                      onClick={() => handleSelectDate(d.isoDate)}
+                      style={{
+                        flex: "0 0 auto",
+                        minWidth: "60px",
+                        padding: "8px 10px",
+                        borderRadius: "10px",
+                        border: isSelected ? "2px solid #1D9E75" : "1px solid #e2e8f0",
+                        background: isSelected ? "#E1F5EE" : "#fff",
+                        color: isSelected ? "#0F6E56" : "#334155",
+                        cursor: "pointer",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: "10px", fontWeight: 700, opacity: 0.8 }}>
+                        {d.isToday ? "TODAY" : d.dayName.toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: "16px", fontWeight: 800, margin: "2px 0" }}>{d.dayNumber}</div>
+                      <div style={{ fontSize: "10px", opacity: 0.8 }}>{d.monthName}</div>
+                    </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Day selector */}
-            <div style={{ display: "flex", gap: "6px", marginBottom: "16px", overflowX: "auto" }}>
-              {DAYS.map((day, i) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDay(i)}
-                  style={{
-                    flex: "0 0 auto", padding: "10px 14px", borderRadius: "10px",
-                    border: selectedDay === i ? "2px solid #1D9E75" : "1.5px solid #f0ede6",
-                    background: selectedDay === i ? "#E1F5EE" : "#fff",
-                    color: selectedDay === i ? "#1D9E75" : "#555",
-                    fontWeight: 600, fontSize: "13px", cursor: "pointer", textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "11px", opacity: 0.7 }}>{day}</div>
-                  <div style={{ fontSize: "16px" }}>{DATES[i]}</div>
-                </button>
-              ))}
-            </div>
-
-            {/* Slot grid */}
+            {/* Slot Matrix Display */}
             <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "#3a3a3a", marginBottom: "10px" }}>
-                Available Time Slots · {MONTHS[5]} {DATES[selectedDay]}
+              <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: "8px" }}>
+                Available Slots for {selectedDate}
               </div>
-              <SlotGrid slots={SLOT_MAP} selected={selectedSlot} onSelect={setSelectedSlot} />
+              {loadSlots ? (
+                <div style={{ padding: "30px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                  Fetching live slots from API...
+                </div>
+              ) : slots.length === 0 ? (
+                <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "8px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                  No open slots found for this date/court.
+                </div>
+              ) : (
+                <SlotGrid slots={slots} selected={selectedSlot} onSelect={setSelectedSlot} />
+              )}
             </div>
 
-            {/* Equipment summary */}
+            {/* Selected Equipment Indicator */}
             {equipment.length > 0 && (
-              <div style={{ background: "#E1F5EE", borderRadius: "10px", padding: "12px 16px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "#0F6E56", marginBottom: "6px" }}>
-                  Equipment Added ({equipment.length})
+              <div style={{ background: "#E1F5EE", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px" }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0F6E56" }}>
+                  Equipment Add-ons ({equipment.length})
                 </div>
                 {equipment.map((e) => (
-                  <div key={e.id} style={{ fontSize: "13px", color: "#555" }}>
-                    {e.name} ×{e.qty} — ₹{e.pricePerHour * e.qty}/hr
+                  <div key={e.id} style={{ fontSize: "12px", color: "#334155" }}>
+                    {e.name} (x{e.qty}) — ₹{e.pricePerHour * e.qty}/hr
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Actions */}
-            <div style={{ display: "flex", gap: "10px" }}>
+            {/* Bottom Actions */}
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <Button variant="outline" onClick={() => setEquipOpen(true)}>
-                + Add Equipment
+                + Equipment
               </Button>
-              <Button fullWidth disabled={!selectedSlot} onClick={() => { alert(`Booking confirmed at ${selectedSlot}!`); setBookingClub(null); setEquipment([]); }}>
-                {selectedSlot ? `Confirm Booking · ${selectedSlot}` : "Select a slot"}
+              <Button fullWidth disabled={!selectedSlot} onClick={() => setSummaryOpen(true)}>
+                {selectedSlot ? `Confirm Booking (₹${selectedSlot.price || bookingClub.price || 350})` : "Select a Time Slot"}
               </Button>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Equipment picker overlay */}
-      <EquipmentPicker open={equipOpen} onClose={() => setEquipOpen(false)} onConfirm={(items) => { setEquipment(items); setEquipOpen(false); }} />
+      {/* Equipment Modal */}
+      <EquipmentPicker
+        open={equipOpen}
+        onClose={() => setEquipOpen(false)}
+        onConfirm={(items) => {
+          setEquipment(items);
+          setEquipOpen(false);
+        }}
+      />
+
+      {/* Booking Confirmation & Payment Modal */}
+      {summaryOpen && (
+        <BookingSummaryModal
+          open={summaryOpen}
+          onClose={() => setSummaryOpen(false)}
+          club={bookingClub}
+          court={selectedCourt}
+          slot={selectedSlot}
+          equipment={equipment}
+          date={selectedDate}
+          onSuccess={() => {
+            setSummaryOpen(false);
+            handleCloseBooking();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-// ─── CLUB CARD ──────────────────────────────────────────────────────────────
-// Presentational card for a single club in the discover grid.
-function ClubCard({ club, onBook }) {
+// ─── Auxiliary UI Components ────────────────────────────────────────────────
+function ClubCard({ club, onView }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: "16px",
-        overflow: "hidden",
-        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-        border: "1px solid #f0ede6",
-        transition: "box-shadow 0.25s ease, transform 0.25s ease",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)"; e.currentTarget.style.transform = "translateY(0)"; }}
-    >
-      {/* Image banner */}
-      <div
-        style={{
-          height: "140px",
-          background: "linear-gradient(135deg, #1D9E75, #185FA5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "48px",
-        }}
-      >
+    <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+      <div style={{ height: "100px", background: "linear-gradient(135deg, #185FA5, #1D9E75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px" }}>
         🏟️
       </div>
-
-      {/* Body */}
-      <div style={{ padding: "18px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-          <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#08060d" }}>{club.name}</h3>
-          <Badge color="#BA7517" bg="#FAEEDA">★ {club.rating || "4.5"}</Badge>
+      <div style={{ padding: "14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>{club.name}</h3>
+          <Badge color="#993556" bg="#FBEAF0">★ {club.rating || "4.5"}</Badge>
         </div>
-        <p style={{ margin: "0 0 12px", fontSize: "13px", color: "#888" }}>
-          {club.location || club.address}
-        </p>
-
-        {/* Sport tags */}
-        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "16px" }}>
-          {club.courts?.slice(0, 3).map((court) => {
-            const sport = getSport(court.sportId);
-            return (
-              <Badge key={court.id} color={sport?.color} bg={sport?.bg}>
-                {sport?.icon} {sport?.name}
-              </Badge>
-            );
-          })}
-        </div>
-
-        {/* Footer row */}
+        <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#64748b" }}>{club.location || club.address || "Pune"}</p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <span style={{ fontSize: "20px", fontWeight: 800, color: "#08060d" }}>
-              ₹{club.price || club.basePrice}
-            </span>
-            <span style={{ fontSize: "13px", color: "#888" }}> /hr</span>
-          </div>
-          <Button size="sm" onClick={onBook}>Book Now</Button>
+          <span style={{ fontSize: "16px", fontWeight: 800 }}>₹{club.price || club.basePrice || "350"}<span style={{ fontSize: "12px", fontWeight: 400, color: "#64748b" }}>/hr</span></span>
+          <Button size="sm" onClick={onView}>Book</Button>
         </div>
       </div>
     </div>
+  );
+}
+
+function Pill({ children, active, color, bg, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 14px",
+        borderRadius: "999px",
+        border: active ? "none" : `1px solid ${color}33`,
+        background: active ? color || "#08060d" : bg || "#fff",
+        color: active ? "#fff" : color || "#555",
+        fontWeight: 600,
+        fontSize: "12px",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </button>
   );
 }

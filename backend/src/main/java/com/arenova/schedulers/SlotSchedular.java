@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 import com.arenova.court.entities.Court;
 import com.arenova.court.repositories.CourtRepository;
 import com.arenova.slot.services.SlotService;
-import com.arenova.slot.services.SlotServiceImpl;
 
 import lombok.RequiredArgsConstructor;
 

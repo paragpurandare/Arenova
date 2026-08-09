@@ -8,7 +8,6 @@ import Modal from "../components/ui/Modal";
 import TabBar from "../components/ui/TabBar";
 import SlotGrid from "../components/ui/SlotGrid";
 import EquipmentPicker from "../components/ui/EquipmentPicker";
-import ClubCard from "../components/customer/ClubCard";
 import BookingSummaryModal from "../components/customer/BookingSummaryModal";
 import CustomerDiscover from "./customer/CustomerDiscover";
 import { usePayment } from "../context/PaymentContext";

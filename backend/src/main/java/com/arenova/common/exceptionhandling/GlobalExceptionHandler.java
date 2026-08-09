@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.arenova.common.Exceptions.BadRequestException;
+import com.arenova.common.Exceptions.InsufficientStockException;
 import com.arenova.common.Exceptions.ResourceNotFoundException;
 import com.arenova.common.dtos.ApiResponse;
 
@@ -22,6 +23,12 @@ import com.arenova.common.dtos.ApiResponse;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ApiResponse> handleInsufficientStock(InsufficientStockException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiResponse(ex.getMessage(), "Failed"));
+    }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse> handleBadRequest(BadRequestException ex) {

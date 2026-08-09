@@ -5,11 +5,13 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
 import com.arenova.common.Exceptions.ResourceNotFoundException;
 import com.arenova.court.entities.Court;
 import com.arenova.court.entities.CourtConfig;
-import com.arenova.court.repositories.CourtConfigRepository;
 import com.arenova.court.repositories.CourtRepository;
+import com.arenova.court.services.CourtConfigService;
 import com.arenova.slot.dtos.SlotsResponseDTO;
 import com.arenova.slot.entities.Slot;
 import com.arenova.slot.entities.SlotStatus;
@@ -18,198 +20,155 @@ import com.arenova.slot.repositories.SlotRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
-
+@Service
 @Transactional
 @RequiredArgsConstructor
-
-
 public class SlotServiceImpl implements SlotService {
-	
-	private final SlotRepository slotRepo;
-	private final CourtRepository courtRepo;
-	private final CourtConfigRepository courtConfigRepo;
-	
 
-	@Override
-	public List<SlotsResponseDTO> getSlotsByCourtAndDate(Long courtId, LocalDate slotDate) {
-		
-		  if (!courtRepo.existsById(courtId)) {
-		        throw new ResourceNotFoundException("Court not found with id : " + courtId);
-		  }
+    private final SlotRepository slotRepo;
+    private final CourtRepository courtRepo;
 
-		// TODO Auto-generated method stub
-		List<Slot> slots = slotRepo.findAllByCourt_IdAndSlotDate(courtId, slotDate);
+    // How many days ahead the initial slot generation covers.
+    private static final int SLOT_GENERATION_WINDOW_DAYS = 30;
 
-	    return slots.stream()
-	            .map(this::convertToDto)
-	            .toList();
-	}
+    @Override
+    public List<SlotsResponseDTO> getSlotsByCourtAndDate(Long courtId, LocalDate slotDate) {
 
-	@Override
-	public SlotsResponseDTO getSlotById(Long slotId) {
-		
-		Slot slot = slotRepo.findById(slotId)
-	            .orElseThrow(() ->
-	                    new ResourceNotFoundException("Slot not found with id : " + slotId));
+        if (!courtRepo.existsById(courtId)) {
+            throw new ResourceNotFoundException("Court not found with id : " + courtId);
+        }
 
-	    return convertToDto(slot);
-	}
+        List<Slot> slots = slotRepo.findAllByCourt_IdAndSlotDate(courtId, slotDate);
 
-	@Override
-	public void blockSlot(Long slotId) {
-	
-		int updatedRows = slotRepo.blockSlot(slotId);
+        return slots.stream()
+                .map(this::convertToDto)
+                .toList();
+    }
+
+    @Override
+    public SlotsResponseDTO getSlotById(Long slotId) {
+
+        Slot slot = slotRepo.findById(slotId)
+                .orElseThrow(() -> new ResourceNotFoundException("Slot not found with id : " + slotId));
+
+        return convertToDto(slot);
+    }
+
+    @Override
+    public void blockSlot(Long slotId) {
+
+        int updatedRows = slotRepo.blockSlot(slotId);
 
         if (updatedRows == 0) {
             throw new ResourceNotFoundException("Slot not found with id : " + slotId);
         }
-        
-	}
+    }
 
+    @Override
+    public void unblockSlot(Long slotId) {
 
-	@Override
-	public void unblockSlot(Long slotId) {
-		
-		 int updatedRows = slotRepo.unblockSlot(slotId);
+        int updatedRows = slotRepo.unblockSlot(slotId);
 
-	        if (updatedRows == 0) {
-	            throw new ResourceNotFoundException("Slot not found with id : " + slotId);
-	        }
-		
-	}
+        if (updatedRows == 0) {
+            throw new ResourceNotFoundException("Slot not found with id : " + slotId);
+        }
+    }
 
-	@Override
-	public void bookSlot(Long slotId) {
-		
-		 int updatedRows = slotRepo.bookSlot(slotId);
+    @Override
+    public void bookSlot(Long slotId) {
 
-	        if (updatedRows == 0) {
-	            throw new IllegalStateException(
-	                    "Slot is unavailable, blocked or already booked.");
-	        }
-		
-	}
-	
-	@Override
-	public void expirePastSlots() {
-		
-		 slotRepo.expirePastSlots(
-	                LocalDate.now(),
-	                LocalTime.now()
-	        );
-		
-	}
-	
-	@Override
-	public void generateSlots(Long courtId) {
-		
-		Court court = courtRepo.findById(courtId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+        int updatedRows = slotRepo.bookSlot(slotId);
 
-	    CourtConfig config = courtConfigRepo.findByCourt_Id(courtId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Court configuration not found"));
+        if (updatedRows == 0) {
+            throw new IllegalStateException("Slot is unavailable, blocked or already booked.");
+        }
+    }
 
-	    slotRepo.deleteFutureAvailableSlots(courtId, LocalDate.now());
+    @Override
+    public void expirePastSlots() {
+        slotRepo.expirePastSlots(LocalDate.now(), LocalTime.now());
+    }
 
-	    List<Slot> slots = new ArrayList<>();
+    @Override
+    public void generateSlots(Long courtId) {
 
-	    LocalDate today = LocalDate.now();
+        Court court = courtRepo.findById(courtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
 
-	    for (int i = 0; i < 30; i++) {
+        CourtConfig config = court.getConfig();
 
-	        LocalDate slotDate = today.plusDays(i);
+        // Wipe any not-yet-booked future slots first, so a config change
+        // (e.g. new operating hours) doesn't leave stale slots behind.
+        slotRepo.deleteFutureAvailableSlots(courtId, LocalDate.now());
 
-	        LocalTime current = config.getOpenTime();
+        LocalDate today = LocalDate.now();
+        List<Slot> slots = new ArrayList<>();
 
-	        while (true) {
+        for (int i = 0; i < SLOT_GENERATION_WINDOW_DAYS; i++) {
+            slots.addAll(buildSlotsForDay(court, config, today.plusDays(i)));
+        }
 
-	            LocalTime endTime =
-	                    current.plusMinutes(config.getSlotDuration());
+        slotRepo.saveAll(slots);
+    }
 
-	            if (endTime.isAfter(config.getCloseTime()))
-	                break;
+    @Override
+    public void generateNextDaySlots(Long courtId) {
 
-	            Slot slot = new Slot();
+        Court court = courtRepo.findById(courtId)
+                .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
 
-	            slot.setCourt(court);
-	            slot.setSlotDate(slotDate);
-	            slot.setStartTime(current);
-	            slot.setEndTime(endTime);
-	            slot.setStatus(SlotStatus.AVAILABLE);
+        CourtConfig config = court.getConfig();
 
-	            slots.add(slot);
+        LocalDate lastGeneratedDate = slotRepo.findMaxSlotDateByCourt(courtId);
+        if (lastGeneratedDate == null) {
+            lastGeneratedDate = LocalDate.now().minusDays(1);
+        }
 
-	            current = endTime.plusMinutes(config.getBufferTime());
-	        }
-	    }
+        LocalDate nextDate = lastGeneratedDate.plusDays(1);
 
-	    slotRepo.saveAll(slots);
-		
-	}
-	
-	
-	@Override
-	public void generateNextDaySlots(Long courtId) {
-		
-		 Court court = courtRepo.findById(courtId)
-		            .orElseThrow(() -> new ResourceNotFoundException("Court not found"));
+        List<Slot> slots = buildSlotsForDay(court, config, nextDate);
 
-		    CourtConfig config = courtConfigRepo.findByCourt_Id(courtId)
-		            .orElseThrow(() -> new ResourceNotFoundException("Court configuration not found"));
+        slotRepo.saveAll(slots);
+    }
 
-		    LocalDate lastGeneratedDate =
-		            slotRepo.findMaxSlotDateByCourt(courtId);
+    // Builds the AVAILABLE slots for a single court/day from open time to
+    // close time, stepping by (slotDuration + bufferTime) each iteration.
+    // Shared by both generateSlots() and generateNextDaySlots() so the
+    // slot-carving rules only live in one place.
+    private List<Slot> buildSlotsForDay(Court court, CourtConfig config, LocalDate date) {
 
-		    if (lastGeneratedDate == null) {
-		        lastGeneratedDate = LocalDate.now().minusDays(1);
-		    }
+        List<Slot> daySlots = new ArrayList<>();
+        LocalTime current = config.getOpenTime();
 
-		    LocalDate nextDate = lastGeneratedDate.plusDays(1);
+        while (true) {
+            LocalTime endTime = current.plusMinutes(config.getSlotDuration());
 
-		    List<Slot> slots = new ArrayList<>();
+            if (endTime.isAfter(config.getCloseTime())) {
+                break;
+            }
 
-		    LocalTime current = config.getOpenTime();
+            daySlots.add(Slot.builder()
+                    .court(court)
+                    .slotDate(date)
+                    .startTime(current)
+                    .endTime(endTime)
+                    .status(SlotStatus.AVAILABLE)
+                    .build());
 
-		    while (true) {
+            current = endTime.plusMinutes(config.getBufferTime());
+        }
 
-		        LocalTime endTime =
-		                current.plusMinutes(config.getSlotDuration());
+        return daySlots;
+    }
 
-		        if (endTime.isAfter(config.getCloseTime()))
-		            break;
-
-		        Slot slot = new Slot();
-
-		        slot.setCourt(court);
-		        slot.setSlotDate(nextDate);
-		        slot.setStartTime(current);
-		        slot.setEndTime(endTime);
-		        slot.setStatus(SlotStatus.AVAILABLE);
-
-		        slots.add(slot);
-
-		        current = endTime.plusMinutes(config.getBufferTime());
-		    }
-
-		    slotRepo.saveAll(slots);
-		}
-		
-	
-	
-	private SlotsResponseDTO convertToDto(Slot slot) {
-
-	    SlotsResponseDTO dto = new SlotsResponseDTO();
-
-	    dto.setId(slot.getId());
-	    dto.setCourtId(slot.getCourt().getId());
-	    dto.setSlotDate(slot.getSlotDate());
-	    dto.setStartTime(slot.getStartTime());
-	    dto.setEndTime(slot.getEndTime());
-	    dto.setStatus(slot.getStatus());
-
-	    return dto;
-	}
-
-	
-	
+    private SlotsResponseDTO convertToDto(Slot slot) {
+        return SlotsResponseDTO.builder()
+                .id(slot.getId())
+                .courtId(slot.getCourt().getId())
+                .slotDate(slot.getSlotDate())
+                .startTime(slot.getStartTime())
+                .endTime(slot.getEndTime())
+                .status(slot.getStatus())
+                .build();
+    }
 }

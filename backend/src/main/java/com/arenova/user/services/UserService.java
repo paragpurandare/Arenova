@@ -1,5 +1,7 @@
 package com.arenova.user.services;
 
+import java.util.List;
+
 import com.arenova.user.dtos.AuthResponseDTO;
 import com.arenova.user.dtos.LoginRequestDTO;
 import com.arenova.user.dtos.RegisterRequestDTO;
@@ -12,4 +14,7 @@ public interface UserService {
     AuthResponseDTO login(LoginRequestDTO request);
 
     UserResponseDTO getProfile(String email);
+
+    /** Every user with the MANAGER role - lets an owner pick who to assign to a club. */
+    List<UserResponseDTO> getManagers();
 }

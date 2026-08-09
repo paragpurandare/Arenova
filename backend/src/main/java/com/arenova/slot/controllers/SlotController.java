@@ -13,6 +13,7 @@ import com.arenova.slot.dtos.SlotsResponseDTO;
 import com.arenova.slot.services.SlotService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/slots")
@@ -26,6 +27,7 @@ public class SlotController {
      * Used by Customer and Club Manager.
      */
     @GetMapping
+    @PreAuthorize("hasAnyRole('CUSTOMER','MANAGER','OWNER')")
     public ResponseEntity<List<SlotsResponseDTO>> getSlotsByCourtAndDate(
             @RequestParam Long courtId,
             @RequestParam
@@ -40,6 +42,7 @@ public class SlotController {
      * Get slot details.
      */
     @GetMapping("/{slotId}")
+    @PreAuthorize("hasAnyRole('CUSTOMER','MANAGER','OWNER')")
     public ResponseEntity<SlotsResponseDTO> getSlotById(
             @PathVariable Long slotId) {
 
@@ -52,6 +55,7 @@ public class SlotController {
      * Accessible by Club Manager.
      */
     @PutMapping("/{slotId}/block")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> blockSlot(
             @PathVariable Long slotId) {
 
@@ -66,6 +70,7 @@ public class SlotController {
      * Accessible by Club Manager.
      */
     @PutMapping("/{slotId}/unblock")
+    @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<?> unblockSlot(
             @PathVariable Long slotId) {
 

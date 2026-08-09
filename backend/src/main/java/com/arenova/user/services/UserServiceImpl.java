@@ -1,5 +1,7 @@
 package com.arenova.user.services;
 
+import java.util.List;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -89,6 +91,13 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return toUserResponse(user);
+    }
+
+    @Override
+    public List<UserResponseDTO> getManagers() {
+        return userRepository.findByRole(UserRole.ROLE_MANAGER).stream()
+                .map(this::toUserResponse)
+                .toList();
     }
 
     private UserResponseDTO toUserResponse(User user) {

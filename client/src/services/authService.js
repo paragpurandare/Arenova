@@ -14,3 +14,9 @@ export const getProfile = async () => {
   const { data } = await api.get("/auth/profile");
   return data;
 };
+
+/** Every user with the MANAGER role - used by the owner's assign-manager picker. */
+export const getManagers = async () => {
+  const { data } = await api.get("/auth/managers");
+  return data;
+};

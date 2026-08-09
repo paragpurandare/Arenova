@@ -18,6 +18,7 @@ import com.arenova.court.services.CourtService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 
@@ -32,6 +33,7 @@ public class CourtController {
 	
 	
 	@PostMapping
+	@PreAuthorize("hasRole('OWNER')")
 	public ResponseEntity<?> createNewCourt(@RequestBody CourtRequestDTO dto) {
 		
 		try {
@@ -50,6 +52,7 @@ public class CourtController {
 	}
 	
 	@GetMapping("/{id}")
+	@PreAuthorize("hasAnyRole('OWNER','MANAGER','ADMIN')")
 	public ResponseEntity<?> getAllCourts(@PathVariable("id") Long id){
 		
 		try {
@@ -66,7 +69,7 @@ public class CourtController {
 	
 	
 	@PutMapping("/{id}")
-		
+	@PreAuthorize("hasAnyRole('OWNER','MANAGER')")
 		public ResponseEntity<?> editCourt(@RequestBody CourtEditDTO dto, @PathVariable("id") Long id){
 			
 			try {
@@ -84,6 +87,7 @@ public class CourtController {
 		}
 		
 		@GetMapping("active/{id}")
+		@PreAuthorize("hasAnyRole('CUSTOMER','OWNER','MANAGER')")
 		public ResponseEntity<?> getAllActiveCourts(@PathVariable("id") Long id){
 			
 			try {

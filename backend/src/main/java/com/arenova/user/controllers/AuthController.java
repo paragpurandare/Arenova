@@ -2,6 +2,7 @@ package com.arenova.user.controllers;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,5 +39,12 @@ public class AuthController {
     public ResponseEntity<?> getProfile(Authentication authentication) {
         String email = authentication.getName();
         return ResponseEntity.ok(userService.getProfile(email));
+    }
+
+    /** Every MANAGER-role user - used by the owner's "assign manager" picker. */
+    @GetMapping("/managers")
+    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    public ResponseEntity<?> getManagers() {
+        return ResponseEntity.ok(userService.getManagers());
     }
 }
