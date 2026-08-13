@@ -1,4 +1,0 @@
-api_gateway\filters\JwtAuthenticationFilter.class
-api_gateway\ApiGatewayApplication.class
-api_gateway\config\CorsConfig.class
-api_gateway\filters\CorsDeduplicationFilter.class
