@@ -68,7 +68,7 @@ public class ClubManagerController {
 
     /** Owner/Admin: who currently manages a given club. */
     @GetMapping("/api/clubs/{clubId}/manager")
-    @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+    @PreAuthorize("hasAnyRole('CUSTOMER','OWNER','MANAGER','ADMIN')")
     public ResponseEntity<?> getManagerOfClub(@PathVariable Long clubId) {
 
         try {

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Arenova Logo 4K Ultra-HD PNG Exporter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #08060d;
+      color: #ffffff;
+      margin: 0;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 { font-size: 32px; font-weight: 900; margin: 0 0 8px; text-align: center; }
+    p { color: #94a3b8; font-size: 15px; margin: 0 0 40px; text-align: center; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 30px;
+      width: 100%;
+      max-width: 1050px;
+    }
+    .card {
+      border-radius: 24px;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .card-light {
+      background: #ffffff;
+      color: #08060d;
+      border: 1px solid #e2e8f0;
+    }
+    .card-dark {
+      background: #0d0a17;
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .preview-box {
+      width: 100%;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+      padding: 10px;
+    }
+    .preview-box svg {
+      max-width: 100%;
+      height: auto;
+      max-height: 85px;
+    }
+    .btn {
+      width: 100%;
+      padding: 16px 24px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 800;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      background: #1D9E75;
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(29, 158, 117, 0.35);
+    }
+    .btn:hover {
+      background: #157a5a;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(29, 158, 117, 0.45);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Arenova Official High-Resolution Logos</h1>
+  <p>Click below to download 4K Ultra-HD (3300 × 750px) Transparent PNGs</p>
+
+  <div class="grid">
+    <!-- Light Theme Card -->
+    <div class="card card-light">
+      <h3 style="margin: 0 0 20px; font-size: 19px; font-weight: 800; color: #08060d;">
+        Light Theme Logo
+      </h3>
+      <div class="preview-box">
+        <svg id="svgLight" width="330" height="75" viewBox="0 0 330 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="novaGradL" x1="0" y1="0" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#1D9E75" />
+              <stop offset="100%" stop-color="#2CD49B" />
+            </linearGradient>
+          </defs>
+          <g transform="translate(6, 6)">
+            <path d="M 3 52 A 28 28 0 0 1 59 52" fill="none" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+            <path d="M 10 52 A 21 21 0 0 1 52 52" fill="none" stroke="#1D9E75" stroke-width="1.8" stroke-opacity="0.4" stroke-linecap="round" />
+            <line x1="0" y1="52" x2="62" y2="52" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+            <rect x="14" y="26" width="34" height="26" rx="2" fill="none" stroke="#1D9E75" stroke-width="2.2" />
+            <line x1="31" y1="26" x2="31" y2="52" stroke="#1D9E75" stroke-width="2" stroke-dasharray="3 2" />
+            <circle cx="31" cy="39" r="2.5" fill="#1D9E75" />
+          </g>
+          <text x="82" y="45" font-family="'Inter', system-ui, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="#08060D">Are</text>
+          <text x="152" y="45" font-family="'Inter', system-ui, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="url(#novaGradL)">nova</text>
+          <circle cx="95" cy="11" r="3.2" fill="#2CD49B" />
+          <text x="84" y="62" font-family="'Inter', system-ui, sans-serif" font-size="10" font-weight="700" letter-spacing="4.5px" fill="#64748B">BOOK · RENT · PLAY</text>
+          <line x1="84" y1="67" x2="140" y2="67" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" />
+          <line x1="145" y1="67" x2="162" y2="67" stroke="#2CD49B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5" />
+        </svg>
+      </div>
+      <button class="btn" onclick="exportPNG('svgLight', 'arenova-logo-light-4k.png')">
+        ⬇️ Download Light Logo (4K PNG)
+      </button>
+    </div>
+
+    <!-- Dark Theme Card -->
+    <div class="card card-dark">
+      <h3 style="margin: 0 0 20px; font-size: 19px; font-weight: 800; color: #ffffff;">
+        Dark Theme Logo
+      </h3>
+      <div class="preview-box">
+        <svg id="svgDark" width="330" height="75" viewBox="0 0 330 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="novaGradD" x1="0" y1="0" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#1D9E75" />
+              <stop offset="100%" stop-color="#2CD49B" />
+            </linearGradient>
+          </defs>
+          <g transform="translate(6, 6)">
+            <path d="M 3 52 A 28 28 0 0 1 59 52" fill="none" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+            <path d="M 10 52 A 21 21 0 0 1 52 52" fill="none" stroke="#1D9E75" stroke-width="1.8" stroke-opacity="0.4" stroke-linecap="round" />
+            <line x1="0" y1="52" x2="62" y2="52" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+            <rect x="14" y="26" width="34" height="26" rx="2" fill="none" stroke="#1D9E75" stroke-width="2.2" />
+            <line x1="31" y1="26" x2="31" y2="52" stroke="#1D9E75" stroke-width="2" stroke-dasharray="3 2" />
+            <circle cx="31" cy="39" r="2.5" fill="#1D9E75" />
+          </g>
+          <text x="82" y="45" font-family="'Inter', system-ui, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="#FFFFFF">Are</text>
+          <text x="152" y="45" font-family="'Inter', system-ui, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="url(#novaGradD)">nova</text>
+          <circle cx="95" cy="11" r="3.2" fill="#2CD49B" />
+          <text x="84" y="62" font-family="'Inter', system-ui, sans-serif" font-size="10" font-weight="700" letter-spacing="4.5px" fill="#94A3B8">BOOK · RENT · PLAY</text>
+          <line x1="84" y1="67" x2="140" y2="67" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" />
+          <line x1="145" y1="67" x2="162" y2="67" stroke="#2CD49B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5" />
+        </svg>
+      </div>
+      <button class="btn" onclick="exportPNG('svgDark', 'arenova-logo-dark-4k.png')">
+        ⬇️ Download Dark Logo (4K PNG)
+      </button>
+    </div>
+  </div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    function exportPNG(svgId, filename) {
+      const svgElement = document.getElementById(svgId);
+      const svgString = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const URL = window.URL || window.webkitURL || window;
+      const blobURL = URL.createObjectURL(svgBlob);
+
+      const image = new Image();
+      image.onload = function() {
+        const canvas = document.getElementById('canvas');
+        // Render in 4K resolution (3300 x 750px)
+        canvas.width = 3300;
+        canvas.height = 750;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const pngURL = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.download = filename;
+        downloadLink.href = pngURL;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(blobURL);
+      };
+      image.src = blobURL;
+    }
+  </script>
+</body>
+</html>

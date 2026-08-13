@@ -1,13 +1,13 @@
 import { DEF_CONFIG } from "./sports";
 
 export const EQUIPMENT_CATALOG = [
-  { id: "EQ01", name: "Badminton Racket", sportId: 1, icon: "🏸", pricePerHour: 50, deposit: 200, stock: 12, available: 8, condition: "Good" },
-  { id: "EQ02", name: "Shuttlecocks (6 pcs)", sportId: 1, icon: "🏸", pricePerHour: 30, deposit: 0, stock: 40, available: 35, condition: "New" },
-  { id: "EQ03", name: "Football", sportId: 2, icon: "⚽", pricePerHour: 80, deposit: 300, stock: 6, available: 4, condition: "Good" },
-  { id: "EQ04", name: "Shin Guards", sportId: 2, icon: "⚽", pricePerHour: 20, deposit: 100, stock: 20, available: 16, condition: "Good" },
-  { id: "EQ05", name: "Cricket Bat", sportId: 3, icon: "🏏", pricePerHour: 100, deposit: 500, stock: 8, available: 5, condition: "Good" },
-  { id: "EQ06", name: "TT Paddle", sportId: 4, icon: "🏓", pricePerHour: 30, deposit: 150, stock: 16, available: 12, condition: "Good" },
-  { id: "EQ07", name: "Pickleball Paddle", sportId: 6, icon: "🎾", pricePerHour: 60, deposit: 250, stock: 10, available: 7, condition: "Good" },
+  { id: 1, name: "Badminton Racket", sportId: 1, icon: "🏸", pricePerHour: 50, deposit: 200, stock: 12, available: 8, condition: "Good" },
+  { id: 2, name: "Shuttlecocks (6 pcs)", sportId: 1, icon: "🏸", pricePerHour: 30, deposit: 0, stock: 40, available: 35, condition: "New" },
+  { id: 3, name: "Football", sportId: 2, icon: "⚽", pricePerHour: 80, deposit: 300, stock: 6, available: 4, condition: "Good" },
+  { id: 4, name: "Shin Guards", sportId: 2, icon: "⚽", pricePerHour: 20, deposit: 100, stock: 20, available: 16, condition: "Good" },
+  { id: 5, name: "Cricket Bat", sportId: 3, icon: "🏏", pricePerHour: 100, deposit: 500, stock: 8, available: 5, condition: "Good" },
+  { id: 6, name: "TT Paddle", sportId: 4, icon: "🏓", pricePerHour: 30, deposit: 150, stock: 16, available: 12, condition: "Good" },
+  { id: 7, name: "Pickleball Paddle", sportId: 6, icon: "🎾", pricePerHour: 60, deposit: 250, stock: 10, available: 7, condition: "Good" },
 ];
 
 export const RENTAL_ORDERS = [

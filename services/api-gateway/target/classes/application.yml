@@ -1,0 +1,90 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      default-filters:
+        - name: DedupeResponseHeader
+          args:
+            name: Access-Control-Allow-Origin Access-Control-Allow-Credentials
+            strategy: RETAIN_UNIQUE
+
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      routes:
+
+        # ==============================
+        # Slot Service
+        # ==============================
+        - id: slot-service
+          uri: lb://SLOT-SERVICE
+          predicates:
+            - Path=/api/slots/**
+
+        # ==============================
+        # Rental Service
+        # ==============================
+        - id: rental-service
+          uri: lb://RENTAL-SERVICE
+          predicates:
+            - Path=/api/rentals/**
+
+        # ==============================
+        # Payment Service
+        # ==============================
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+
+        # ==============================
+        # Booking Service
+        # ==============================
+        - id: booking-service
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/bookings/**
+
+        # ==============================
+        # Modular Monolith
+        # ==============================
+        - id: monolith-service
+          uri: lb://ARENOVA-MONOLITH
+          predicates:
+            - Path=/api/auth/**, /api/admin/**, /api/clubs/**, /api/courts/**, /api/users/**, /api/equipment/**, /api/equipments/**
+
+
+# ==========================================
+# Eureka Client
+# ==========================================
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+
+  instance:
+    prefer-ip-address: true
+
+
+# ==========================================
+# JWT
+# ==========================================
+jwt:
+  secret: ${JWT_SECRET:arenova-sports-ecosystem-super-secret-signing-key-change-me-in-prod}
+
+
+# ==========================================
+# Actuator
+# ==========================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

@@ -1,16 +1,22 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { fetchNearbyClubs } from "../../services/clubService";
+import { fetchNearbyClubs, getClubManager } from "../../services/clubService";
 import { fetchActiveCourts } from "../../services/courtService";
 import { fetchSlots } from "../../services/slotService";
+import { fetchEquipmentByClub, fetchEquipmentAvailability } from "../../services/equipmentService";
 import { SPORTS_LIST, getSport, getSportByType } from "../../constants/sports";
-import { INIT_CLUBS } from "../../constants/mockData";
+import { INIT_CLUBS, EQUIPMENT_CATALOG } from "../../constants/mockData";
+import { usePayment } from "../../context/PaymentContext";
+import { useAuth } from "../../context/AuthContext";
 
+import ClubCard from "../../components/customer/ClubCard";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import SlotGrid from "../../components/ui/SlotGrid";
 import EquipmentPicker from "../../components/ui/EquipmentPicker";
 import BookingSummaryModal from "../../components/customer/BookingSummaryModal";
+import OlaMap from "../../components/OlaMap";
+import { MapPin, UserCheck, Dumbbell, Sparkles, Navigation, Compass, Search, X } from "lucide-react";
 
 // Generate rolling 14-day calendar starting strictly from current moment
 function generateCalendarDays() {
@@ -30,7 +36,7 @@ function generateCalendarDays() {
       dayName: d.toLocaleDateString("en-IN", { weekday: "short" }),
       dayNumber: d.getDate(),
       monthName: d.toLocaleDateString("en-IN", { month: "short" }),
-      isToday: i === 0
+      isToday: i === 0,
     });
   }
   return days;
@@ -40,9 +46,13 @@ export default function CustomerDiscover() {
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSport, setActiveSport] = useState(null);
+  const [searchLocation, setSearchLocation] = useState("");
 
   // Booking Modal State
   const [bookingClub, setBookingClub] = useState(null);
+  const [clubManagerName, setClubManagerName] = useState(null);
+  const [clubEquipment, setClubEquipment] = useState([]);
+  const [showOlaMap, setShowOlaMap] = useState(false);
   const [courts, setCourts] = useState([]);
   const [loadCourts, setLoadCourts] = useState(false);
   const [selectedCourt, setSelectedCourt] = useState(null);
@@ -60,6 +70,10 @@ export default function CustomerDiscover() {
   const [equipOpen, setEquipOpen] = useState(false);
   const [equipment, setEquipment] = useState([]);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [payLoading, setPayLoading] = useState(false);
+
+  const { startPayment } = usePayment();
+  const { user } = useAuth();
 
   // Load nearby clubs on mount
   useEffect(() => {
@@ -115,15 +129,42 @@ export default function CustomerDiscover() {
     }
   }, []);
 
-  // Open modal and immediately load active court & real-time slots
+  // Open modal and load club manager, active courts, available equipment, and slots
   const handleOpenBooking = async (club) => {
     setBookingClub(club);
     setLoadCourts(true);
     setSelectedSlot(null);
     setEquipment([]);
+    setClubManagerName(null);
+    setClubEquipment([]);
+
     const defaultDate = calendarDays[0].isoDate;
     setSelectedDate(defaultDate);
 
+    // 1. Fetch manager details
+    try {
+      const mgr = await getClubManager(club.id);
+      if (mgr?.firstName || mgr?.name) {
+        setClubManagerName(`${mgr.firstName || ""} ${mgr.lastName || ""}`.trim() || mgr.name);
+      }
+    } catch {
+      setClubManagerName(null);
+    }
+
+    // 2. Fetch club active equipment with quantities
+    try {
+      const equipData = await fetchEquipmentAvailability(club.id, defaultDate);
+      if (equipData && equipData.length > 0) {
+        setClubEquipment(equipData);
+      } else {
+        const catData = await fetchEquipmentByClub(club.id);
+        setClubEquipment(catData || []);
+      }
+    } catch {
+      setClubEquipment([]);
+    }
+
+    // 3. Fetch active courts
     try {
       const activeCourts = await fetchActiveCourts(club.id);
       const courtList = activeCourts?.length ? activeCourts : club.courts || [];
@@ -154,10 +195,22 @@ export default function CustomerDiscover() {
   };
 
   // Switch Calendar Date
-  const handleSelectDate = (isoDate) => {
+  const handleSelectDate = async (isoDate) => {
     setSelectedDate(isoDate);
     if (selectedCourt) {
       getSlots(selectedCourt.id, isoDate);
+    }
+
+    // Refresh equipment availability for date
+    if (bookingClub?.id) {
+      try {
+        const equipData = await fetchEquipmentAvailability(bookingClub.id, isoDate);
+        if (equipData && equipData.length > 0) {
+          setClubEquipment(equipData);
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -170,24 +223,117 @@ export default function CustomerDiscover() {
     setEquipment([]);
   };
 
-  const filteredClubs = clubs.filter((club) => {
-    if (!activeSport) return true;
-    if (!club.courts?.length) return true;
-    return club.courts.some((c) => (c.sportsType || c.sportId) === activeSport);
-  });
+  const handlePay = async () => {
+    const targetSlotId = typeof selectedSlot === "object" ? selectedSlot?.id : selectedSlot;
+    if (!targetSlotId || !user?.id) {
+      alert("Please select a slot and ensure you are logged in.");
+      return;
+    }
+    const realCourtPrice = selectedCourt?.pricePerHour || bookingClub?.basePrice || bookingClub?.price || 350;
+
+    setPayLoading(true);
+    await startPayment({
+      slotId: Number(targetSlotId),
+      userId: user.id,
+      courtId: selectedCourt?.id,
+      courtName: selectedCourt?.name || "Court",
+      courtAmount: Number(realCourtPrice),
+      sportsType: selectedCourt?.sportsType || bookingClub?.sportsType || "General",
+      clubId: bookingClub?.id,
+      clubName: bookingClub?.name,
+      slotDate: selectedDate,
+      startTime: selectedSlot?.startTime,
+      endTime: selectedSlot?.endTime,
+      paymentMethod: "UPI",
+      equipmentItems: equipment,
+      userDetails: { name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.name, email: user.email },
+      onSuccess: (booking) => {
+        setPayLoading(false);
+        setSummaryOpen(false);
+        handleCloseBooking();
+        alert(`🎉 Booking #${booking.id} confirmed successfully! Total: ₹${booking.totalAmount || booking.totalPayable || realCourtPrice}`);
+      },
+      onError: (err) => {
+        setPayLoading(false);
+        alert(err || "Booking failed.");
+      },
+    });
+  };
+
+  const filteredClubs = useMemo(() => {
+    return clubs.filter((club) => {
+      // 1. Keyword search (case-insensitive substring match on name, location, address, city)
+      if (searchLocation.trim()) {
+        const query = searchLocation.trim().toLowerCase();
+        const fullText = `${club.name || ""} ${club.location || ""} ${club.address || ""} ${club.city || ""}`.toLowerCase();
+        if (!fullText.includes(query)) return false;
+      }
+
+      // 2. Dynamic Sport filter
+      if (activeSport) {
+        const sportObj = SPORTS_LIST.find((s) => s.id === activeSport);
+        const targetName = (sportObj?.name || "").toUpperCase();
+
+        const clubCourts = club.courts || [];
+        const hasMatchingCourt = clubCourts.some((court) => {
+          const cType = (court.sportsType || "").toUpperCase();
+          const cId = court.sportId;
+          return cId === activeSport || cType.includes(targetName) || targetName.includes(cType);
+        });
+
+        if (!hasMatchingCourt && clubCourts.length > 0) return false;
+      }
+
+      return true;
+    });
+  }, [clubs, searchLocation, activeSport]);
 
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
+      <div style={{ marginBottom: "20px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#08060d", margin: "0 0 6px" }}>
           Discover Nearby Clubs
         </h1>
         <p style={{ fontSize: "14px", color: "#666", margin: 0 }}>
-          Live court availability starting from today.
+          Live court availability & equipment rentals near you.
         </p>
       </div>
 
-      {/* Sport Categories */}
+      {/* Location Keyword Search Bar (No OlaMaps API tokens hit) */}
+      <div style={{ marginBottom: "16px" }}>
+        <div style={{ position: "relative", maxWidth: "600px" }}>
+          <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#888" }} />
+          <input
+            type="text"
+            placeholder="Search by city, area, or arena name (e.g. Pune, Ravet, Baner)..."
+            value={searchLocation}
+            onChange={(e) => setSearchLocation(e.target.value)}
+            style={{
+              width: "100%",
+              paddingLeft: "42px",
+              paddingRight: searchLocation ? "36px" : "16px",
+              paddingTop: "12px",
+              paddingBottom: "12px",
+              borderRadius: "12px",
+              border: "1.5px solid #f0ede6",
+              fontSize: "14px",
+              background: "#fff",
+              outline: "none",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
+            }}
+          />
+          {searchLocation && (
+            <button
+              onClick={() => setSearchLocation("")}
+              style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#888", cursor: "pointer", fontSize: "14px" }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Sport Categories Filter Pills */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "24px", overflowX: "auto", paddingBottom: "4px" }}>
         <Pill active={activeSport === null} color="#08060d" onClick={() => setActiveSport(null)}>
           All Sports
@@ -218,77 +364,143 @@ export default function CustomerDiscover() {
         </div>
       )}
 
-      {/* Interactive Booking Modal */}
-      <Modal open={!!bookingClub} onClose={handleCloseBooking} title="Select Date & Time Slot" size="lg">
+      {/* Interactive Booking & Detailed Information Modal */}
+      <Modal open={!!bookingClub} onClose={handleCloseBooking} title="Club Information & Slot Booking" size="lg">
         {bookingClub && (
           <div>
-            {/* Header */}
-            <div style={{ marginBottom: "16px" }}>
-              <h3 style={{ margin: "0 0 4px", fontSize: "18px", fontWeight: 700 }}>{bookingClub.name}</h3>
-              <p style={{ margin: 0, fontSize: "13px", color: "#666" }}>
-                📍 {bookingClub.location || bookingClub.address || "Pune"}
-              </p>
+            {/* Header info with compact location and manager name */}
+            <div className="bg-[#faf9f6] rounded-xl p-4 mb-5 border border-[#f0ede6]">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <h3 className="text-lg font-bold text-[#08060d] m-0">{bookingClub.name}</h3>
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <MapPin size={13} className="text-[#1D9E75]" />
+                    {bookingClub.location || (bookingClub.address ? bookingClub.address.split(",")[0] + ", " + (bookingClub.city || "") : "Pune")}
+                    {bookingClub.distanceKm && <span className="font-bold text-gray-700">· {bookingClub.distanceKm} km</span>}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xl font-extrabold text-[#1D9E75]">₹{bookingClub.basePrice || bookingClub.price || 350}</span>
+                  <span className="text-xs text-gray-500 font-normal"> /hr</span>
+                </div>
+              </div>
+
+              {/* Manager Badge & Navigation Buttons */}
+              <div className="flex items-center justify-between pt-2.5 border-t border-[#f0ede6] text-xs flex-wrap gap-2">
+                <div className="flex items-center gap-1.5">
+                  <UserCheck size={14} className="text-[#534AB7]" />
+                  <span className="text-gray-600">
+                    Manager: <strong className="text-[#08060d]">{clubManagerName || bookingClub.managerName || "Self-Managed (Owner)"}</strong>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowOlaMap((prev) => !prev)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E6F1FB] text-[#185FA5] font-semibold hover:bg-[#d5e7f9] transition-all cursor-pointer"
+                  >
+                    <Compass size={13} /> {showOlaMap ? "Hide Map" : "OlaMap"}
+                  </button>
+
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${
+                      bookingClub.latitude && bookingClub.longitude
+                        ? `${bookingClub.latitude},${bookingClub.longitude}`
+                        : encodeURIComponent(`${bookingClub.name}, ${bookingClub.location || bookingClub.address || "Pune"}`)
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#1D9E75] text-white font-semibold hover:bg-[#157a5a] transition-all no-underline cursor-pointer"
+                  >
+                    <Navigation size={13} /> Get Directions
+                  </a>
+                </div>
+              </div>
+
+              {/* OlaMap Inline View */}
+              {showOlaMap && (
+                <div className="mt-3 pt-3 border-t border-[#f0ede6]">
+                  <OlaMap
+                    initialLat={bookingClub.latitude || 18.5204}
+                    initialLng={bookingClub.longitude || 73.8567}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Equipment Available Displayed with Qty */}
+            <div className="mb-5">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-[#534AB7] mb-2">
+                <Dumbbell size={14} /> Equipment Available for Rent
+              </div>
+              {clubEquipment.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {clubEquipment.map((eq) => {
+                    const avail = eq.availableUnits !== undefined ? eq.availableUnits : (eq.totalStock || 10);
+                    return (
+                      <div key={eq.equipmentId || eq.id} className="bg-white border border-[#f0ede6] rounded-lg p-2.5 flex justify-between items-center text-xs">
+                        <div>
+                          <div className="font-bold text-[#08060d]">{eq.equipmentName || eq.name}</div>
+                          <div className="text-gray-500">₹{eq.pricePerSlot || 50}/slot</div>
+                        </div>
+                        <Badge color={avail > 0 ? "#0F6E56" : "#A32D2D"} bg={avail > 0 ? "#E1F5EE" : "#FCEBEB"}>
+                          {avail} left
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 bg-white p-3 rounded-lg border border-[#f0ede6]">
+                  Equipment rental items are loaded via catalog during checkout.
+                </div>
+              )}
             </div>
 
             {/* Active Courts Selection */}
-            {loadCourts ? (
-              <p style={{ color: "#888", fontSize: "13px" }}>Loading active courts…</p>
-            ) : (
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-                {courts.map((court) => {
-                  const sport = getSportByType(court.sportsType) || getSport(court.sportId);
-                  const isSel = selectedCourt?.id === court.id;
-                  return (
-                    <button
-                      key={court.id}
-                      onClick={() => handleSelectCourt(court)}
-                      style={{
-                        padding: "8px 14px",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        border: "1px solid " + (isSel ? "#1D9E75" : "#e2e8f0"),
-                        background: isSel ? "#1D9E75" : "#f8fafc",
-                        color: isSel ? "#fff" : "#334155",
-                        fontWeight: 600,
-                        fontSize: "13px",
-                      }}
-                    >
-                      {sport?.icon || "🏸"} {court.name || court.type}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div className="mb-4">
+              <div className="text-xs font-bold uppercase text-gray-500 mb-2">Courts Managed</div>
+              {loadCourts ? (
+                <p className="text-xs text-gray-400">Loading active courts…</p>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  {courts.map((court) => {
+                    const sport = getSportByType(court.sportsType) || getSport(court.sportId);
+                    const isSel = selectedCourt?.id === court.id;
+                    return (
+                      <button
+                        key={court.id}
+                        onClick={() => handleSelectCourt(court)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                          isSel ? "bg-[#1D9E75] text-white border-[#1D9E75]" : "bg-white text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        {sport?.icon || "🏸"} {court.name || court.type}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Dynamic Date Calendar */}
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: "8px" }}>
-                Select Booking Date
-              </div>
-              <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "6px" }}>
+            <div className="mb-5">
+              <div className="text-xs font-bold uppercase text-gray-500 mb-2">Select Booking Date</div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
                 {calendarDays.map((d) => {
                   const isSelected = selectedDate === d.isoDate;
                   return (
                     <button
                       key={d.isoDate}
                       onClick={() => handleSelectDate(d.isoDate)}
-                      style={{
-                        flex: "0 0 auto",
-                        minWidth: "60px",
-                        padding: "8px 10px",
-                        borderRadius: "10px",
-                        border: isSelected ? "2px solid #1D9E75" : "1px solid #e2e8f0",
-                        background: isSelected ? "#E1F5EE" : "#fff",
-                        color: isSelected ? "#0F6E56" : "#334155",
-                        cursor: "pointer",
-                        textAlign: "center",
-                      }}
+                      className={`flex-none min-w-[64px] px-2.5 py-2 rounded-xl text-center border transition-all ${
+                        isSelected ? "border-[#1D9E75] bg-[#E1F5EE] text-[#0F6E56] font-bold" : "border-gray-200 bg-white text-gray-700"
+                      }`}
                     >
-                      <div style={{ fontSize: "10px", fontWeight: 700, opacity: 0.8 }}>
-                        {d.isToday ? "TODAY" : d.dayName.toUpperCase()}
-                      </div>
-                      <div style={{ fontSize: "16px", fontWeight: 800, margin: "2px 0" }}>{d.dayNumber}</div>
-                      <div style={{ fontSize: "10px", opacity: 0.8 }}>{d.monthName}</div>
+                      <div className="text-[10px] font-bold opacity-80">{d.isToday ? "TODAY" : d.dayName.toUpperCase()}</div>
+                      <div className="text-base font-extrabold my-0.5">{d.dayNumber}</div>
+                      <div className="text-[10px] opacity-80">{d.monthName}</div>
                     </button>
                   );
                 })}
@@ -296,17 +508,15 @@ export default function CustomerDiscover() {
             </div>
 
             {/* Slot Matrix Display */}
-            <div style={{ marginBottom: "20px" }}>
-              <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: "8px" }}>
+            <div className="mb-5">
+              <div className="text-xs font-bold uppercase text-gray-500 mb-2">
                 Available Slots for {selectedDate}
               </div>
               {loadSlots ? (
-                <div style={{ padding: "30px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-                  Fetching live slots from API...
-                </div>
+                <div className="p-6 text-center text-xs text-gray-500">Fetching live slots from API...</div>
               ) : slots.length === 0 ? (
-                <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "8px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-                  No open slots found for this date/court.
+                <div className="p-4 bg-gray-50 rounded-lg text-center text-xs text-gray-500">
+                  No open slots found for this court on this date.
                 </div>
               ) : (
                 <SlotGrid slots={slots} selected={selectedSlot} onSelect={setSelectedSlot} />
@@ -315,26 +525,38 @@ export default function CustomerDiscover() {
 
             {/* Selected Equipment Indicator */}
             {equipment.length > 0 && (
-              <div style={{ background: "#E1F5EE", borderRadius: "8px", padding: "10px 14px", marginBottom: "16px" }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0F6E56" }}>
-                  Equipment Add-ons ({equipment.length})
-                </div>
-                {equipment.map((e) => (
-                  <div key={e.id} style={{ fontSize: "12px", color: "#334155" }}>
-                    {e.name} (x{e.qty}) — ₹{e.pricePerHour * e.qty}/hr
-                  </div>
-                ))}
+              <div className="bg-[#E1F5EE] rounded-xl p-3.5 mb-4">
+                <div className="text-xs font-bold text-[#0F6E56] mb-1">Equipment Add-ons ({equipment.length})</div>
+                {equipment.map((e) => {
+                  const unitPrice = Number(e.pricePerHour || e.pricePerSlot || e.pricePerUnit || e.price || 50);
+                  const q = Number(e.qty || e.quantity || 1);
+                  return (
+                    <div key={e.id} className="text-xs text-gray-600">
+                      {e.name} (x{q}) — ₹{unitPrice * q}/slot
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             {/* Bottom Actions */}
-            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+            <div className="flex gap-3 mt-5">
               <Button variant="outline" onClick={() => setEquipOpen(true)}>
-                + Equipment
+                + Add Equipment
               </Button>
-              <Button fullWidth disabled={!selectedSlot} onClick={() => setSummaryOpen(true)}>
-                {selectedSlot ? `Confirm Booking (₹${selectedSlot.price || bookingClub.price || 350})` : "Select a Time Slot"}
-              </Button>
+              {(() => {
+                const courtVal = Number(selectedCourt?.pricePerHour || bookingClub?.basePrice || bookingClub?.price || 350);
+                const eqVal = equipment.reduce(
+                  (sum, e) => sum + Number(e.qty || e.quantity || 1) * Number(e.pricePerHour || e.pricePerSlot || e.pricePerUnit || e.price || 50),
+                  0
+                );
+                const grandTotal = courtVal + eqVal;
+                return (
+                  <Button fullWidth disabled={!selectedSlot} onClick={() => setSummaryOpen(true)}>
+                    {selectedSlot ? `Confirm Booking (₹${grandTotal})` : "Select a Time Slot"}
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -344,6 +566,8 @@ export default function CustomerDiscover() {
       <EquipmentPicker
         open={equipOpen}
         onClose={() => setEquipOpen(false)}
+        clubId={bookingClub?.id}
+        date={selectedDate}
         onConfirm={(items) => {
           setEquipment(items);
           setEquipOpen(false);
@@ -360,34 +584,10 @@ export default function CustomerDiscover() {
           slot={selectedSlot}
           equipment={equipment}
           date={selectedDate}
-          onSuccess={() => {
-            setSummaryOpen(false);
-            handleCloseBooking();
-          }}
+          onConfirm={handlePay}
+          loading={payLoading}
         />
       )}
-    </div>
-  );
-}
-
-// ─── Auxiliary UI Components ────────────────────────────────────────────────
-function ClubCard({ club, onView }) {
-  return (
-    <div style={{ background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
-      <div style={{ height: "100px", background: "linear-gradient(135deg, #185FA5, #1D9E75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px" }}>
-        🏟️
-      </div>
-      <div style={{ padding: "14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>{club.name}</h3>
-          <Badge color="#993556" bg="#FBEAF0">★ {club.rating || "4.5"}</Badge>
-        </div>
-        <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#64748b" }}>{club.location || club.address || "Pune"}</p>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: "16px", fontWeight: 800 }}>₹{club.price || club.basePrice || "350"}<span style={{ fontSize: "12px", fontWeight: 400, color: "#64748b" }}>/hr</span></span>
-          <Button size="sm" onClick={onView}>Book</Button>
-        </div>
-      </div>
     </div>
   );
 }

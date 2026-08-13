@@ -43,14 +43,14 @@ export default function SlotGrid({ slots, onSelect, selected }) {
         gap: "8px",
       }}
     >
-      {items.map(({ key, label, status }) => {
+      {items.map(({ key, label, status, raw }) => {
         const isAvailable = status === "available";
-        const isSelected  = selected === key;
+        const isSelected  = selected === key || selected?.id === key;
         return (
           <button
             key={key}
             disabled={!isAvailable}
-            onClick={() => onSelect?.(key)}
+            onClick={() => onSelect?.(raw || key)}
             style={{
               padding: "10px 6px",
               borderRadius: "8px",

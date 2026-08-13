@@ -40,6 +40,7 @@ export const STATUS_BG = {
   locked: "#FAEEDA",   BLOCKED: "#f0ede6",
   blocked: "#f0ede6",  EXPIRED: "#f5f5f5",
 };
+
 export const STATUS_COLOR = {
   confirmed: "#0F6E56", pending: "#854F0B", cancelled: "#A32D2D",
   active: "#0F6E56",    returned: "#888",   damaged: "#A32D2D",
@@ -51,3 +52,24 @@ export const STATUS_COLOR = {
 
 export const getSport    = (id)       => SPORTS_LIST.find((s) => s.id === id);
 export const getSportByType = (type)  => getSport(SPORTS_TYPE_MAP[type]);
+
+/** Returns sport-specific equipment emojis based on equipment name or sport type */
+export function getEquipmentEmoji(name = "", sportType = "") {
+  const text = `${name} ${sportType}`.toLowerCase();
+  if (text.includes("bat") || text.includes("cricket")) return "🏏";
+  if (text.includes("racket") && text.includes("badminton")) return "🏸";
+  if (text.includes("badminton") || text.includes("shuttle") || text.includes("cock")) return "🏸";
+  if (text.includes("pickle") || text.includes("paddle")) return "🏓";
+  if (text.includes("tennis") && (text.includes("ball") || text.includes("racket"))) return "🎾";
+  if (text.includes("tennis")) return "🎾";
+  if (text.includes("football") || text.includes("soccer")) return "⚽";
+  if (text.includes("basketball") || text.includes("hoop")) return "🏀";
+  if (text.includes("volleyball")) return "🏐";
+  if (text.includes("bowling") || text.includes("pin")) return "🎳";
+  if (text.includes("table tennis") || text.includes("ping pong")) return "🏓";
+  if (text.includes("shoe") || text.includes("boot")) return "👟";
+  if (text.includes("glove")) return "🧤";
+  if (text.includes("helmet") || text.includes("guard") || text.includes("pad")) return "🛡️";
+  if (text.includes("net") || text.includes("goal")) return "🥅";
+  return "⚡";
+}

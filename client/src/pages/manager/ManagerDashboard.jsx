@@ -1,17 +1,20 @@
 // ─── MANAGER DASHBOARD ──────────────────────────────────────────────────────
 // On mount, fetches the authenticated manager's assigned club from the backend
-// (GET /api/clubs/manager-club). If the manager hasn't been assigned to a
-// club yet, shows a clear empty state instead of faking data.
+// (GET /api/clubs/manager-club). All tabs use real backend data — no mock data.
 import { useState, useEffect, useCallback } from "react";
 import { fetchManagerClub }                   from "../../services/clubService";
-import { fetchCourts }                        from "../../services/courtService";
+import { fetchCourts, createCourt, updateCourt } from "../../services/courtService";
 import { fetchSlots, blockSlot, unblockSlot } from "../../services/slotService";
+import { fetchEquipmentByClub, deactivateEquipment } from "../../services/equipmentService";
+import { fetchClubBookings, markRentalPickup, markRentalReturn } from "../../services/bookingService";
 import { getSportByType, STATUS_BG, STATUS_COLOR } from "../../constants/sports";
-import { MOCK_BOOKINGS, RENTAL_ORDERS, EQUIPMENT_CATALOG } from "../../constants/mockData";
 import Badge    from "../../components/ui/Badge";
 import Button   from "../../components/ui/Button";
 import TabBar   from "../../components/ui/TabBar";
 import Modal    from "../../components/ui/Modal";
+import CourtConfigModal from "../../components/manager/CourtConfigModal";
+import AddCourtModal from "../../components/owner/AddCourtModal";
+import AddEquipmentModal from "../../components/manager/AddEquipmentModal";
 
 const TABS = [
   { key: "overview",  label: "Overview",  icon: "📊" },
@@ -64,29 +67,50 @@ export default function ManagerDashboard({ tab: activeTab, setTab }) {
           Manager Dashboard
         </h1>
         <p style={{ fontSize: "15px", color: "#888" }}>
-          Managing <strong style={{ color: "#08060d" }}>{club.name}</strong>
+          Managing <strong style={{ color: "#08060d" }}>{club.name}</strong> · {club.location || club.address || "Pune"}
         </p>
       </div>
 
       <TabBar tabs={TABS} active={activeTab} onChange={setTab} />
 
-      {activeTab === "overview"  && <OverviewTab />}
-      {activeTab === "bookings"  && <BookingsTab />}
+      {activeTab === "overview"  && <OverviewTab clubId={club?.id} />}
+      {activeTab === "bookings"  && <BookingsTab clubId={club?.id} />}
       {activeTab === "courts"    && <CourtsTab clubId={club?.id} />}
-      {activeTab === "equipment" && <EquipmentTab />}
+      {activeTab === "equipment" && <EquipmentTab clubId={club?.id} />}
     </div>
   );
 }
 
 // ─── OVERVIEW TAB ───────────────────────────────────────────────────────────
-function OverviewTab() {
-  const todayBookings = MOCK_BOOKINGS.filter((b) => b.status === "confirmed");
+function OverviewTab({ clubId }) {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!clubId) return;
+    let cancelled = false;
+    fetchClubBookings(clubId)
+      .then((data) => { if (!cancelled) setBookings(data || []); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [clubId]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayBookings = bookings.filter((b) => b.slotDate === todayStr);
+  const confirmed = bookings.filter((b) => b.status === "CONFIRMED").length;
+  const pending = bookings.filter((b) => b.status === "PENDING").length;
+  const revenue = bookings
+    .filter((b) => b.status === "CONFIRMED" && b.slotDate === todayStr)
+    .reduce((sum, b) => sum + (b.totalPayable || b.courtAmount || 0), 0);
+
   const stats = [
-    { label: "Today's Bookings",  value: todayBookings.length,                                      icon: "📅", color: "#1D9E75", bg: "#E1F5EE" },
-    { label: "Active Rentals",    value: RENTAL_ORDERS.filter((r) => r.status === "active").length,  icon: "🎒", color: "#185FA5", bg: "#E6F1FB" },
-    { label: "Pending Approvals", value: MOCK_BOOKINGS.filter((b) => b.status === "pending").length, icon: "⏳", color: "#BA7517", bg: "#FAEEDA" },
-    { label: "Revenue Today",     value: "₹3,200",                                                  icon: "💰", color: "#993556", bg: "#FBEAF0" },
+    { label: "Today's Bookings", value: todayBookings.length, icon: "📅", color: "#1D9E75", bg: "#E1F5EE" },
+    { label: "Confirmed Total",  value: confirmed,            icon: "✅", color: "#185FA5", bg: "#E6F1FB" },
+    { label: "Pending",          value: pending,               icon: "⏳", color: "#BA7517", bg: "#FAEEDA" },
+    { label: "Revenue Today",    value: `₹${revenue}`,        icon: "💰", color: "#993556", bg: "#FBEAF0" },
   ];
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px", marginBottom: "28px" }}>
@@ -102,61 +126,216 @@ function OverviewTab() {
       </div>
       <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", padding: "20px" }}>
         <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 700 }}>Today's Bookings</h3>
-        {todayBookings.map((b) => (
-          <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f0ede6" }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: "14px", color: "#08060d" }}>{b.user} · {b.sport}</div>
-              <div style={{ fontSize: "12px", color: "#888" }}>{b.court} · {b.time}</div>
+        {loading ? (
+          <div style={{ padding: "20px", textAlign: "center", color: "#888" }}>Loading…</div>
+        ) : todayBookings.length === 0 ? (
+          <div style={{ padding: "20px", textAlign: "center", color: "#888" }}>No bookings for today.</div>
+        ) : todayBookings.map((b) => {
+          const statusKey = b.status?.toLowerCase() || "pending";
+          return (
+            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f0ede6" }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: "14px", color: "#08060d" }}>{b.userName || "Customer"} · {b.sportsType || "Sports"}</div>
+                <div style={{ fontSize: "12px", color: "#888" }}>{b.courtName} · {fmtTime(b.startTime)}–{fmtTime(b.endTime)}</div>
+              </div>
+              <Badge color={STATUS_COLOR[statusKey] || "#1D9E75"} bg={STATUS_BG[statusKey] || "#E1F5EE"}>{b.status}</Badge>
             </div>
-            <Badge color={STATUS_COLOR[b.status]} bg={STATUS_BG[b.status]}>{b.status}</Badge>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
 
 // ─── BOOKINGS TAB ──────────────────────────────────────────────────────────
-function BookingsTab() {
+function BookingsTab({ clubId }) {
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [qrModal, setQrModal] = useState(null);
+  const [rentalAction, setRentalAction] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!clubId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchClubBookings(clubId);
+      setBookings(data || []);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to load bookings.");
+    } finally {
+      setLoading(false);
+    }
+  }, [clubId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleRentalAction = async (rentalId, action) => {
+    setRentalAction(rentalId);
+    try {
+      if (action === "pickup") await markRentalPickup(rentalId);
+      else if (action === "return") await markRentalReturn(rentalId);
+      alert(`Rental ${action === "pickup" ? "picked up" : "returned"} successfully!`);
+      await load();
+    } catch (err) {
+      alert(err?.response?.data?.message || `Failed to ${action} rental.`);
+    } finally {
+      setRentalAction(null);
+    }
+  };
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorBox msg={error} onRetry={load} />;
+
   return (
-    <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ background: "#faf9f6", borderBottom: "1.5px solid #f0ede6" }}>
-            {["ID","Customer","Sport","Court","Time","Status","Action"].map((h) => <Th key={h}>{h}</Th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {MOCK_BOOKINGS.map((b) => (
-            <tr key={b.id} style={{ borderBottom: "1px solid #f0ede6" }}>
-              <Td style={{ fontWeight: 700 }}>{b.id}</Td>
-              <Td>{b.user}</Td>
-              <Td>{b.sport}</Td>
-              <Td>{b.court}</Td>
-              <Td>{b.time}</Td>
-              <Td><Badge color={STATUS_COLOR[b.status]} bg={STATUS_BG[b.status]}>{b.status}</Badge></Td>
-              <Td>
-                {b.status === "pending" ? (
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <Button size="sm">Approve</Button>
-                    <Button size="sm" variant="outline">Reject</Button>
-                  </div>
-                ) : <span style={{ fontSize: "12px", color: "#888" }}>—</span>}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>All Club Bookings ({bookings.length})</h3>
+        <Button size="sm" variant="outline" onClick={load}>Refresh</Button>
+      </div>
+
+      {bookings.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No bookings yet for this club.</div>
+      ) : (
+        <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#faf9f6", borderBottom: "1.5px solid #f0ede6" }}>
+                {["ID","Customer","Court","Date & Time","Amount","QR Code","Status","Rental"].map((h) => <Th key={h}>{h}</Th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((b) => {
+                const statusKey = b.status?.toLowerCase() || "pending";
+                const rental = b.rentalOrder;
+                return (
+                  <tr key={b.id} style={{ borderBottom: "1px solid #f0ede6" }}>
+                    <Td style={{ fontWeight: 700, color: "#08060d" }}>#{b.id}</Td>
+                    <Td>{b.userName || "Customer"}</Td>
+                    <Td>
+                      <div style={{ fontWeight: 600 }}>{b.courtName}</div>
+                      <div style={{ fontSize: "11px", color: "#888" }}>{b.sportsType}</div>
+                    </Td>
+                    <Td>
+                      <div style={{ fontWeight: 600 }}>{b.slotDate}</div>
+                      <div style={{ fontSize: "11px", color: "#888" }}>{fmtTime(b.startTime)}–{fmtTime(b.endTime)}</div>
+                    </Td>
+                    <Td style={{ fontWeight: 700 }}>₹{b.totalPayable || b.courtAmount}</Td>
+                    <Td>
+                      <button
+                        onClick={() => setQrModal(b)}
+                        style={{
+                          background: "#E1F5EE", color: "#0F6E56", border: "1px solid #9FE1CB",
+                          borderRadius: "8px", padding: "4px 10px", fontSize: "11px", fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        🔍 Verify
+                      </button>
+                    </Td>
+                    <Td>
+                      <Badge color={STATUS_COLOR[statusKey] || "#1D9E75"} bg={STATUS_BG[statusKey] || "#E1F5EE"}>{b.status}</Badge>
+                    </Td>
+                    <Td>
+                      {rental ? (
+                        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                          {rental.status === "PENDING" && (
+                            <Button size="sm" disabled={rentalAction === rental.id} onClick={() => handleRentalAction(rental.id, "pickup")}>
+                              {rentalAction === rental.id ? "…" : "Mark Pickup"}
+                            </Button>
+                          )}
+                          {rental.status === "ACTIVE" && (
+                            <Button size="sm" variant="outline" disabled={rentalAction === rental.id} onClick={() => handleRentalAction(rental.id, "return")}>
+                              {rentalAction === rental.id ? "…" : "Mark Return"}
+                            </Button>
+                          )}
+                          {rental.status === "RETURNED" && (
+                            <span style={{ fontSize: "11px", color: "#0F6E56", fontWeight: 600 }}>✅ Returned</span>
+                          )}
+                          {!["PENDING","ACTIVE","RETURNED"].includes(rental.status) && (
+                            <span style={{ fontSize: "11px", color: "#888" }}>{rental.status}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: "#888" }}>—</span>
+                      )}
+                    </Td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* QR Verification Modal */}
+      {qrModal && (
+        <Modal open={!!qrModal} onClose={() => setQrModal(null)} title="Booking & QR Verification" size="sm">
+          <div style={{ textAlign: "center", padding: "8px" }}>
+            <div style={{
+              width: "64px", height: "64px", borderRadius: "16px", background: "#E1F5EE", color: "#0F6E56",
+              display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "28px", marginBottom: "12px"
+            }}>🎟️</div>
+            <h3 style={{ fontWeight: 700, fontSize: "18px", color: "#08060d", margin: "0 0 4px" }}>{qrModal.clubName || "Arenova Club"}</h3>
+            <p style={{ fontSize: "12px", color: "#888", margin: "0 0 16px" }}>{qrModal.courtName} · {qrModal.slotDate}</p>
+
+            <div style={{
+              background: "#faf9f6", border: "2px dashed rgba(29,158,117,0.4)", borderRadius: "16px",
+              padding: "24px", marginBottom: "16px", display: "flex", flexDirection: "column", alignItems: "center"
+            }}>
+              <div style={{
+                width: "176px", height: "176px", background: "#fff", padding: "12px", borderRadius: "12px",
+                border: "1px solid #e0e0e0", boxShadow: "0 1px 3px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrModal.qrCode || `ARENOVA-BK-${qrModal.id}`)}`}
+                  alt="Booking QR Code"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+              </div>
+              <div style={{ marginTop: "12px", fontFamily: "monospace", fontWeight: 700, fontSize: "14px", letterSpacing: "1.5px", color: "#08060d" }}>
+                {qrModal.qrCode || `ARENOVA-BK-${qrModal.id}`}
+              </div>
+            </div>
+
+            <div style={{
+              display: "flex", justifyContent: "space-between", fontSize: "12px", background: "#f8f8f8",
+              padding: "12px", borderRadius: "8px", color: "#555", marginBottom: "16px"
+            }}>
+              <span>Customer: <strong>{qrModal.userName || "—"}</strong></span>
+              <span>Status: <strong style={{ color: "#0F6E56" }}>{qrModal.status}</strong></span>
+              <span>Paid: <strong>₹{qrModal.totalPayable || qrModal.courtAmount}</strong></span>
+            </div>
+
+            {qrModal.rentalOrder && (
+              <div style={{ background: "#E6F1FB", borderRadius: "8px", padding: "10px", fontSize: "12px", color: "#185FA5", marginBottom: "12px", textAlign: "left" }}>
+                <strong>🎒 Equipment Rental:</strong>
+                {qrModal.rentalOrder.items?.map((item, i) => (
+                  <div key={i} style={{ marginTop: "2px" }}>• {item.equipmentName} × {item.quantity}</div>
+                ))}
+                <div style={{ marginTop: "4px" }}>Rental Status: <strong>{qrModal.rentalOrder.status}</strong></div>
+              </div>
+            )}
+
+            <p style={{ fontSize: "11px", color: "#aaa", margin: 0 }}>
+              Scan or verify this QR code to check in the customer for entry & equipment pickup.
+            </p>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
 // ─── COURTS TAB ────────────────────────────────────────────────────────────
 function CourtsTab({ clubId }) {
-  const [courts,    setCourts]    = useState([]);
-  const [loading,   setLoading]   = useState(false);
-  const [error,     setError]     = useState(null);
-  const [slotModal, setSlotModal] = useState(null);
+  const [courts,       setCourts]       = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
+  const [slotModal,    setSlotModal]    = useState(null);
+  const [configModal,  setConfigModal]  = useState(null);
+  const [addCourtOpen, setAddCourtOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!clubId) return;
@@ -166,7 +345,7 @@ function CourtsTab({ clubId }) {
       const data = await fetchCourts(Number(clubId));
       setCourts(data || []);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load courts.");
+      setError(err?.response?.data?.message || "Failed to load courts.");
     } finally {
       setLoading(false);
     }
@@ -174,41 +353,88 @@ function CourtsTab({ clubId }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleSaveConfig = async (court, updatedConfig) => {
+    try {
+      const payload = {
+        name: court.name,
+        sportsType: court.sportsType,
+        openTime: updatedConfig.openTime,
+        closeTime: updatedConfig.closeTime,
+        slotDuration: Number(updatedConfig.slotDuration),
+        bufferTime: Number(updatedConfig.bufferTime),
+        maxPlayers: Number(updatedConfig.maxPlayers),
+        active: updatedConfig.active,
+      };
+      await updateCourt(court.id, payload);
+      alert("Court configuration updated successfully!");
+      await load();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Failed to update court configuration.");
+    }
+  };
+
   if (loading) return <Spinner />;
   if (error)   return <ErrorBox msg={error} onRetry={load} />;
-  if (courts.length === 0) return (
-    <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No courts found for this club.</div>
-  );
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-        {courts.map((court) => {
-          const sport = getSportByType(court.sportsType);
-          return (
-            <div key={court.id} style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <div style={{ fontSize: "28px" }}>{sport?.icon || "🏸"}</div>
-                <Badge color={court.active ? "#0F6E56" : "#888"} bg={court.active ? "#E1F5EE" : "#f0ede6"}>
-                  {court.active ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              <h4 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 700 }}>{court.name}</h4>
-              <p style={{ margin: "0 0 6px", fontSize: "13px", color: "#888" }}>{sport?.name}</p>
-              <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#888" }}>
-                {fmtTime(court.openTime)}–{fmtTime(court.closeTime)} · {court.slotDuration}min slots
-              </p>
-              <Button size="sm" variant="outline" fullWidth onClick={() => setSlotModal({ court })}>
-                Manage Slots
-              </Button>
-            </div>
-          );
-        })}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>Courts Managed ({courts.length})</h3>
+        <Button size="sm" onClick={() => setAddCourtOpen(true)}>+ Add New Court</Button>
       </div>
+
+      {courts.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No courts found for this club. Click + Add New Court to add one.</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+          {courts.map((court) => {
+            const sport = getSportByType(court.sportsType);
+            return (
+              <div key={court.id} style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", padding: "18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <div style={{ fontSize: "28px" }}>{sport?.icon || "🏸"}</div>
+                  <Badge color={court.active ? "#0F6E56" : "#888"} bg={court.active ? "#E1F5EE" : "#f0ede6"}>
+                    {court.active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <h4 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 700 }}>{court.name}</h4>
+                <p style={{ margin: "0 0 6px", fontSize: "13px", color: "#888" }}>{sport?.name || court.sportsType}</p>
+                <p style={{ margin: "0 0 12px", fontSize: "12px", color: "#888" }}>
+                  {fmtTime(court.openTime)}–{fmtTime(court.closeTime)} · {court.slotDuration}min slots
+                </p>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <Button size="sm" variant="outline" style={{ flex: 1 }} onClick={() => setSlotModal({ court })}>
+                    Manage Slots
+                  </Button>
+                  <Button size="sm" variant="outline" style={{ flex: 1 }} onClick={() => setConfigModal(court)}>
+                    Edit Config
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {slotModal && (
         <SlotManageModal court={slotModal.court} onClose={() => setSlotModal(null)} />
       )}
+
+      {configModal && (
+        <CourtConfigModal
+          open={!!configModal}
+          court={configModal}
+          onClose={() => setConfigModal(null)}
+          onSave={handleSaveConfig}
+        />
+      )}
+
+      <AddCourtModal
+        open={addCourtOpen}
+        clubId={clubId}
+        onClose={() => setAddCourtOpen(false)}
+        onSuccess={load}
+      />
     </>
   );
 }
@@ -275,24 +501,21 @@ function SlotManageModal({ court, onClose }) {
               const isBlocked = slot.status === "BLOCKED";
               const canToggle = isAvail || isBlocked;
               const acting    = actingId === slot.id;
+              const bg = isAvail ? "#E1F5EE" : isBlocked ? "#FAEEDA" : slot.status === "BOOKED" ? "#FBEAF0" : "#f0ede6";
+              const color = isAvail ? "#0F6E56" : isBlocked ? "#BA7517" : slot.status === "BOOKED" ? "#993556" : "#888";
               return (
                 <button
                   key={slot.id}
                   disabled={!canToggle || acting}
                   onClick={() => toggle(slot)}
                   style={{
-                    padding: "10px 8px",
-                    borderRadius: "8px",
-                    border: "1.5px solid",
-                    borderColor: isAvail ? "#1D9E75" : isBlocked ? "#888" : "transparent",
-                    background: STATUS_BG[slot.status] || STATUS_BG[slot.status?.toLowerCase()] || "#f0f0f0",
-                    color:      STATUS_COLOR[slot.status] || STATUS_COLOR[slot.status?.toLowerCase()] || "#555",
-                    fontSize: "12px", fontWeight: 600, cursor: canToggle ? "pointer" : "default",
-                    opacity: acting ? 0.6 : 1, textAlign: "center",
+                    padding: "10px 8px", borderRadius: "10px", border: "1.5px solid " + color + "33",
+                    background: bg, cursor: canToggle ? "pointer" : "not-allowed", opacity: acting ? 0.5 : 1,
+                    transition: "all 0.15s"
                   }}
                 >
-                  <div>{fmtTime(slot.startTime)}–{fmtTime(slot.endTime)}</div>
-                  <div style={{ fontSize: "10px", marginTop: "3px" }}>{acting ? "…" : slot.status}</div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color }}>{fmtTime(slot.startTime)}–{fmtTime(slot.endTime)}</div>
+                  <div style={{ fontSize: "10px", fontWeight: 600, color, marginTop: "2px" }}>{slot.status}</div>
                 </button>
               );
             })}
@@ -304,33 +527,94 @@ function SlotManageModal({ court, onClose }) {
 }
 
 // ─── EQUIPMENT TAB ─────────────────────────────────────────────────────────
-function EquipmentTab() {
+function EquipmentTab({ clubId }) {
+  const [equipmentList, setEquipmentList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [addEquipOpen, setAddEquipOpen] = useState(false);
+
+  const loadEquipment = useCallback(async () => {
+    if (!clubId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchEquipmentByClub(clubId);
+      setEquipmentList(data || []);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to load equipment catalog.");
+    } finally {
+      setLoading(false);
+    }
+  }, [clubId]);
+
+  useEffect(() => {
+    loadEquipment();
+  }, [loadEquipment]);
+
+  const handleDeactivate = async (id) => {
+    if (!window.confirm("Deactivate this equipment item?")) return;
+    try {
+      await deactivateEquipment(id);
+      await loadEquipment();
+    } catch (err) {
+      alert(err?.response?.data?.message || "Deactivation failed.");
+    }
+  };
+
+  if (loading) return <Spinner />;
+  if (error) return <ErrorBox msg={error} onRetry={loadEquipment} />;
+
   return (
-    <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ background: "#faf9f6", borderBottom: "1.5px solid #f0ede6" }}>
-            {["ID","Item","Price/hr","Stock","Available","Condition"].map((h) => <Th key={h}>{h}</Th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {EQUIPMENT_CATALOG.map((e) => (
-            <tr key={e.id} style={{ borderBottom: "1px solid #f0ede6" }}>
-              <Td style={{ fontWeight: 700 }}>{e.id}</Td>
-              <Td>{e.icon} {e.name}</Td>
-              <Td>₹{e.pricePerHour}</Td>
-              <Td>{e.stock}</Td>
-              <Td>
-                <Badge color={e.available > 0 ? "#0F6E56" : "#A32D2D"} bg={e.available > 0 ? "#E1F5EE" : "#FCEBEB"}>
-                  {e.available} left
-                </Badge>
-              </Td>
-              <Td>{e.condition}</Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0 }}>Rental Catalog & Inventory ({equipmentList.length})</h3>
+        <Button size="sm" onClick={() => setAddEquipOpen(true)}>+ Add Equipment</Button>
+      </div>
+
+      {equipmentList.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>No equipment configured for this club yet. Click + Add Equipment to list items.</div>
+      ) : (
+        <div style={{ background: "#fff", borderRadius: "16px", border: "1px solid #f0ede6", overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#faf9f6", borderBottom: "1.5px solid #f0ede6" }}>
+                {["ID","Item","Sport Type","Price/Slot","Total Stock","Status","Action"].map((h) => <Th key={h}>{h}</Th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {equipmentList.map((e) => (
+                <tr key={e.id} style={{ borderBottom: "1px solid #f0ede6" }}>
+                  <Td style={{ fontWeight: 700 }}>#{e.id}</Td>
+                  <Td>🎒 {e.name}</Td>
+                  <Td>{e.sportType || "General"}</Td>
+                  <Td>₹{e.pricePerSlot}</Td>
+                  <Td>{e.totalStock}</Td>
+                  <Td>
+                    <Badge color={e.isActive ? "#0F6E56" : "#A32D2D"} bg={e.isActive ? "#E1F5EE" : "#FCEBEB"}>
+                      {e.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    {e.isActive ? (
+                      <Button size="sm" variant="outline" onClick={() => handleDeactivate(e.id)}>Deactivate</Button>
+                    ) : (
+                      <span style={{ fontSize: "12px", color: "#888" }}>—</span>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <AddEquipmentModal
+        open={addEquipOpen}
+        clubId={clubId}
+        onClose={() => setAddEquipOpen(false)}
+        onSuccess={loadEquipment}
+      />
+    </>
   );
 }
 

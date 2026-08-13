@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.arenova.club.entities.Club;
 import com.arenova.club.repository.ClubRepository;
@@ -14,7 +15,6 @@ import com.arenova.equipment.entities.Equipment;
 import com.arenova.equipment.mappers.EquipmentMapper;
 import com.arenova.equipment.repositories.EquipmentRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -43,6 +43,7 @@ public class EquipmentServiceImpl implements EquipmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<EquipmentResponseDTO> getEquipmentByClub(Long clubId) {
         if (!clubRepository.existsById(clubId)) {
             throw new ResourceNotFoundException("Club not found with id: " + clubId);
@@ -54,6 +55,7 @@ public class EquipmentServiceImpl implements EquipmentService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public EquipmentResponseDTO getEquipmentById(Long id) {
         Equipment equipment = equipmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Equipment not found with id: " + id));

@@ -15,6 +15,7 @@ import Modal from "../../components/ui/Modal";
 import AddClub from "../../components/AddClub";
 import AddCourtModal from "../../components/owner/AddCourtModal";
 import EditCourtModal from "../../components/owner/EditCourtModal";
+import AssignManagerModal from "../../components/owner/AssignManagerModal";
 
 const TABS = [
   { key: "overview", label: "Overview", icon: "📊" },
@@ -167,35 +168,71 @@ function ClubsTab({ clubs, loading, error, onRefresh, onAssign }) {
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "16px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "20px" }}>
         {clubs.map((club) => {
           const isOpen = expandedClub === club.id;
-          const clubCourts = courts[club.id] || [];
+          const clubCourts = courts[club.id] || club.courts || [];
+          const compactLocation = club.location || (club.address ? club.address.split(",")[0] + ", " + (club.city || "") : "Pune");
+
+          // Extract unique sport icons for courts present in this club
+          const sportTypesList = clubCourts.map((c) => c.sportsType).filter(Boolean);
+          const uniqueSportTypes = [...new Set(sportTypesList)];
+          const sportIcons = uniqueSportTypes.map((type) => getSportByType(type)?.icon).filter(Boolean);
+
           return (
-            <div key={club.id} style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #f0ede6", overflow: "hidden" }}>
-              {/* Header */}
-              <div style={{ height: "90px", background: "linear-gradient(135deg, #1D9E75, #185FA5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px" }}>🏟️</div>
+            <div key={club.id} style={{ background: "#fff", borderRadius: "16px", border: "1.5px solid #f0ede6", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
+              {/* Header Gradient & Sports Badges */}
+              <div style={{ height: "100px", background: "linear-gradient(135deg, #1D9E75, #185FA5)", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span style={{ fontSize: "36px" }}>🏟️</span>
+                <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {sportIcons.length > 0 ? (
+                    sportIcons.map((icon, i) => (
+                      <span key={i} style={{ background: "rgba(255,255,255,0.25)", backdropFilter: "blur(4px)", padding: "4px 8px", borderRadius: "8px", fontSize: "14px" }}>
+                        {icon}
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ background: "rgba(255,255,255,0.25)", backdropFilter: "blur(4px)", padding: "4px 8px", borderRadius: "8px", fontSize: "12px", color: "#fff", fontWeight: 600 }}>
+                      🏸 Sports Complex
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div style={{ padding: "18px" }}>
-                <h4 style={{ margin: "0 0 2px", fontSize: "16px", fontWeight: 700 }}>{club.name}</h4>
-                <p style={{ margin: "0 0 6px", fontSize: "13px", color: "#888" }}>
-                  {club.address || club.Address} · {club.city}
-                </p>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "14px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+                  <div>
+                    <h4 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 800, color: "#08060d" }}>{club.name}</h4>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#666", display: "flex", alignItems: "center", gap: "4px" }}>
+                      📍 {compactLocation}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#1D9E75" }}>₹{club.basePrice || 350}</span>
+                    <span style={{ fontSize: "11px", color: "#888" }}> /hr</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", margin: "10px 0 16px" }}>
                   <Badge color={club.status === "ACTIVE" ? "#0F6E56" : "#854F0B"} bg={club.status === "ACTIVE" ? "#E1F5EE" : "#FAEEDA"}>
-                    {club.status}
+                    {club.status || "ACTIVE"}
                   </Badge>
-                  <span style={{ fontSize: "13px", color: "#888" }}>₹{club.basePrice}/hr</span>
+                  <span style={{ fontSize: "12px", color: "#666", fontWeight: 500 }}>
+                    Manager: <strong style={{ color: "#08060d" }}>{club.managerName || "Unassigned"}</strong>
+                  </span>
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "12px", borderTop: "1px solid #f0ede6" }}>
                   <Button size="sm" variant="outline" onClick={() => toggleClub(club.id)}>
                     {isOpen ? "▲ Hide Courts" : "▼ View Courts"}
                   </Button>
                   <Button size="sm" onClick={() => { setAddCourtFor(club); if (!courts[club.id]) loadCourtsForClub(club.id); }}>
                     + Add Court
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onAssign(club)}>Assign Manager</Button>
+                  <Button size="sm" variant="outline" onClick={() => onAssign(club)}>
+                    👤 Assign Manager
+                  </Button>
                 </div>
 
                 {/* Courts panel */}
@@ -216,13 +253,13 @@ function ClubsTab({ clubs, loading, error, onRefresh, onAssign }) {
                                 <div>
                                   <div style={{ fontWeight: 600, fontSize: "13px" }}>{court.name}</div>
                                   <div style={{ fontSize: "11px", color: "#888" }}>
-                                    {sport?.name} · {court.slotDuration}min slots
+                                    {sport?.name || court.sportsType} · {court.slotDuration || 60}min slots
                                   </div>
                                 </div>
                               </div>
                               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                                <Badge color={court.active ? "#0F6E56" : "#888"} bg={court.active ? "#E1F5EE" : "#f0ede6"}>
-                                  {court.active ? "Active" : "Inactive"}
+                                <Badge color={court.active !== false ? "#0F6E56" : "#888"} bg={court.active !== false ? "#E1F5EE" : "#f0ede6"}>
+                                  {court.active !== false ? "Active" : "Inactive"}
                                 </Badge>
                                 <Button size="sm" variant="outline" onClick={() => setEditCourt(court)}>Edit</Button>
                               </div>
@@ -298,85 +335,6 @@ function ManagersTab() {
         </div>
       ))}
     </div>
-  );
-}
-
-// ─── ASSIGN MANAGER MODAL ───────────────────────────────────────────────────
-// Fetches real manager accounts and assigns the picked one to the club via
-// POST /api/clubs/{clubId}/manager.
-function AssignManagerModal({ club, onClose, onAssigned }) {
-  const [managers, setManagers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [assigningId, setAssigningId] = useState(null);
-
-  useEffect(() => {
-    if (!club) return;
-    setLoading(true);
-    setError(null);
-    getManagers()
-      .then((data) => setManagers(data || []))
-      .catch((err) => setError(err.response?.data?.message || "Failed to load managers."))
-      .finally(() => setLoading(false));
-  }, [club]);
-
-  const handlePick = async (manager) => {
-    setAssigningId(manager.id);
-    try {
-      await assignManager(club.id, manager.id);
-      onAssigned?.();
-      onClose?.();
-    } catch (err) {
-      setError(err.response?.data?.message || "Could not assign this manager.");
-    } finally {
-      setAssigningId(null);
-    }
-  };
-
-  return (
-    <Modal open={!!club} onClose={onClose} title="Assign Manager" size="sm">
-      {club && (
-        <div>
-          <p style={{ fontSize: "14px", color: "#888", marginBottom: "16px" }}>
-            Select a manager for <strong>{club.name}</strong>
-          </p>
-
-          {error && (
-            <div style={{ background: "#FCEBEB", color: "#A32D2D", padding: "10px 14px", borderRadius: "10px", marginBottom: "12px", fontSize: "13px" }}>
-              {error}
-            </div>
-          )}
-
-          {loading ? (
-            <Spinner />
-          ) : managers.length === 0 ? (
-            <p style={{ fontSize: "13px", color: "#888" }}>No manager accounts registered yet.</p>
-          ) : (
-            managers.map((m) => (
-              <div
-                key={m.id}
-                onClick={() => !assigningId && handlePick(m)}
-                style={{
-                  display: "flex", alignItems: "center", gap: "12px", padding: "12px",
-                  borderRadius: "10px", border: "1.5px solid #f0ede6", marginBottom: "8px",
-                  cursor: assigningId ? "default" : "pointer",
-                  opacity: assigningId && assigningId !== m.id ? 0.5 : 1,
-                }}
-              >
-                <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 700, color: "#1D9E75" }}>
-                  {m.name.charAt(0)}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: "14px" }}>{m.name}</div>
-                  <div style={{ fontSize: "12px", color: "#888" }}>{m.email}</div>
-                </div>
-                {assigningId === m.id && <span style={{ fontSize: "12px", color: "#1D9E75" }}>Assigning…</span>}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </Modal>
   );
 }
 

@@ -1,0 +1,38 @@
+<svg width="1320" height="300" viewBox="0 0 330 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="novaGradLight" x1="0" y1="0" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1D9E75" />
+      <stop offset="100%" stop-color="#2CD49B" />
+    </linearGradient>
+  </defs>
+
+  <!-- LEFT EMBLEM: SPORTS DOME & COURT -->
+  <g transform="translate(6, 6)">
+    <!-- Outer Dome Arc -->
+    <path d="M 3 52 A 28 28 0 0 1 59 52" fill="none" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+    <!-- Inner Dome Accent Arc -->
+    <path d="M 10 52 A 21 21 0 0 1 52 52" fill="none" stroke="#1D9E75" stroke-width="1.8" stroke-opacity="0.4" stroke-linecap="round" />
+    <!-- Court Baseline Floor -->
+    <line x1="0" y1="52" x2="62" y2="52" stroke="#1D9E75" stroke-width="3.2" stroke-linecap="round" />
+    <!-- Center Court Inner Box -->
+    <rect x="14" y="26" width="34" height="26" rx="2" fill="none" stroke="#1D9E75" stroke-width="2.2" />
+    <!-- Center Net Dashed Line -->
+    <line x1="31" y1="26" x2="31" y2="52" stroke="#1D9E75" stroke-width="2" stroke-dasharray="3 2" />
+    <!-- Center Service Mark Dot -->
+    <circle cx="31" cy="39" r="2.5" fill="#1D9E75" />
+  </g>
+
+  <!-- TYPOGRAPHY: "Are" + "nova" -->
+  <text x="82" y="45" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="#08060D">Are</text>
+  <text x="152" y="45" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="40" font-weight="900" letter-spacing="-1.5px" fill="url(#novaGradLight)">nova</text>
+
+  <!-- Accent Dot above 'A' -->
+  <circle cx="95" cy="11" r="3.2" fill="#2CD49B" />
+
+  <!-- TAGLINE: "BOOK · RENT · PLAY" -->
+  <text x="84" y="62" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="10" font-weight="700" letter-spacing="4.5px" fill="#64748B">BOOK · RENT · PLAY</text>
+
+  <!-- Underline Accent Bars -->
+  <line x1="84" y1="67" x2="140" y2="67" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" />
+  <line x1="145" y1="67" x2="162" y2="67" stroke="#2CD49B" stroke-width="2" stroke-linecap="round" stroke-opacity="0.5" />
+</svg>

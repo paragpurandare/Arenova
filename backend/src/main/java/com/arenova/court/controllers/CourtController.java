@@ -75,8 +75,7 @@ public class CourtController {
 			try {
 				
 				courtService.updateCourt(dto, id);
-				return ResponseEntity.status(HttpStatus.CREATED)
-						.body(new ApiResponse("Court Updated Successfully", "Success"));
+				return ResponseEntity.ok(new ApiResponse("Court Updated Successfully", "Success"));
 				
 			}
 			catch(Exception e) {

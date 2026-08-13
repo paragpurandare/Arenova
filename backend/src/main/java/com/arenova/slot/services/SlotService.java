@@ -17,6 +17,8 @@ public interface SlotService {
 
     void bookSlot(Long slotId);
 
+    void releaseSlot(Long slotId);
+
     void expirePastSlots();
 
     void generateSlots(Long courtId);

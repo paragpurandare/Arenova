@@ -58,6 +58,16 @@ public interface SlotRepository extends JpaRepository<Slot, Long> {
     @Transactional
     @Query("""
             UPDATE Slot s
+            SET s.status='AVAILABLE'
+            WHERE s.id=:slotId
+            AND s.status='BOOKED'
+            """)
+    int releaseSlot(@Param("slotId") Long slotId);
+
+    @Modifying
+    @Transactional
+    @Query("""
+            UPDATE Slot s
             SET s.status='EXPIRED'
             WHERE
             (

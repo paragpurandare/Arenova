@@ -3,9 +3,9 @@ package com.arenova.equipment.services;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.arenova.common.Exceptions.InsufficientStockException;
 import com.arenova.common.Exceptions.ResourceNotFoundException;
@@ -16,7 +16,6 @@ import com.arenova.equipment.mappers.EquipmentMapper;
 import com.arenova.equipment.repositories.EquipmentInventoryRepository;
 import com.arenova.equipment.repositories.EquipmentRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -27,6 +26,7 @@ public class EquipmentInventoryServiceImpl implements EquipmentInventoryService 
     private final EquipmentRepository equipmentRepository;
 
     @Override
+    @Transactional
     public List<EquipmentAvailabilityResponseDTO> getAvailability(Long clubId, LocalDate date) {
         // Get all active equipment for the club
         List<Equipment> equipmentList = equipmentRepository.findByClubIdAndIsActiveTrue(clubId);
@@ -60,7 +60,9 @@ public class EquipmentInventoryServiceImpl implements EquipmentInventoryService 
     @Override
     @Transactional
     public void reserveUnits(Long equipmentId, LocalDate date, int quantity) {
-        EquipmentInventory inventory = getOrCreateInventory(equipmentId, date);
+        // Use pessimistic lock to prevent concurrent overbooking
+        EquipmentInventory inventory = inventoryRepository.findByEquipmentIdAndDateWithLock(equipmentId, date)
+                .orElseGet(() -> getOrCreateInventory(equipmentId, date));
 
         int available = inventory.getTotalUnits() - inventory.getReservedUnits();
         if (quantity > available) {

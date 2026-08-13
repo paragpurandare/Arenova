@@ -1,5 +1,5 @@
 import { createContext, useContext, useCallback } from "react";
-import { initiateBooking, verifyPayment } from "../services/bookingService";
+import { createBooking, confirmBooking, cancelBooking } from "../services/bookingService";
 
 const PaymentContext = createContext(null);
 
@@ -22,55 +22,116 @@ function loadRazorpayScript() {
 
 export function PaymentProvider({ children }) {
   const startPayment = useCallback(
-    async ({ courtId, slotId, equipment, amount, userDetails, onSuccess, onError }) => {
+    async ({
+      slotId,
+      userId,
+      courtId,
+      courtName,
+      courtAmount,
+      sportsType,
+      clubId,
+      clubName,
+      slotDate,
+      startTime,
+      endTime,
+      paymentMethod = "UPI",
+      equipmentItems = [],
+      userDetails,
+      onSuccess,
+      onError,
+    }) => {
+      let booking = null;
       try {
-        await loadRazorpayScript();
-
-        const orderRes = await initiateBooking({
-          courtId,
+        // 1. Create Booking + Reserve Slot & Equipment on Backend (Status: PENDING)
+        booking = await createBooking({
           slotId,
-          equipmentItems: equipment || [],
-          amount,
+          userId,
+          courtId,
+          courtName,
+          courtAmount,
+          sportsType,
+          clubId,
+          clubName,
+          slotDate,
+          startTime,
+          endTime,
+          paymentMethod,
+          equipmentItems: equipmentItems.map((e) => ({
+            equipmentId: Number(e.id || e.equipmentId),
+            equipmentName: e.name || e.equipmentName || "Equipment",
+            pricePerUnit: Number(e.pricePerHour || e.pricePerSlot || e.pricePerUnit || e.price || 20),
+            quantity: Number(e.qty || e.quantity || 1),
+          })),
         });
 
-        const { orderId, razorpayOrderId, currency } = orderRes;
+        const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
 
-        const options = {
-          key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_XXXXXXXX",
-          amount: Math.round(amount * 100),
-          currency: currency || "INR",
-          order_id: razorpayOrderId,
-          name: "Arenova",
-          description: "Court Booking & Equipment Rental",
-          prefill: {
-            name: userDetails?.name || "",
-            email: userDetails?.email || "",
-          },
-          handler: async (response) => {
+        // If a valid Razorpay key is configured in .env, open standard Razorpay Checkout
+        if (keyId && keyId !== "YOUR_RAZORPAY_KEY_ID" && keyId !== "rzp_test_XXXXXXXX") {
+          await loadRazorpayScript();
+
+          let paymentHandled = false;
+
+          const options = {
+            key: keyId,
+            amount: Math.round((booking.totalPayable || booking.totalAmount || courtAmount || 0) * 100),
+            currency: "INR",
+            name: "Arenova Sports",
+            description: `Booking #${booking.id} - ${booking.courtName || courtName || "Court"}`,
+            prefill: {
+              name: userDetails?.name || "",
+              email: userDetails?.email || "",
+            },
+            handler: async (response) => {
+              paymentHandled = true;
+              try {
+                const confirmed = await confirmBooking(booking.id, response.razorpay_payment_id);
+                onSuccess?.(confirmed);
+              } catch (err) {
+                onError?.(err?.response?.data?.message || "Payment verification failed.");
+              }
+            },
+            modal: {
+              ondismiss: async () => {
+                if (paymentHandled) return;
+                paymentHandled = true;
+                try {
+                  await cancelBooking(booking.id);
+                } catch {
+                  // ignore cancellation error
+                }
+                onError?.("Payment process was cancelled.");
+              },
+            },
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.on("payment.failed", async (resp) => {
+            if (paymentHandled) return;
+            paymentHandled = true;
             try {
-              const result = await verifyPayment({
-                orderId,
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpaySignature: response.razorpay_signature,
-              });
-              onSuccess?.(result);
-            } catch (err) {
-              onError?.(err);
+              await cancelBooking(booking.id);
+            } catch {
+              // ignore
             }
-          },
-          modal: {
-            ondismiss: () => onError?.(new Error("Payment cancelled")),
-          },
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.on("payment.failed", (resp) => {
-          onError?.(new Error(resp.error?.description || "Payment failed"));
-        });
-        rzp.open();
+            onError?.(resp.error?.description || "Payment failed.");
+          });
+          rzp.open();
+        } else {
+          // Fallback / Test Mode when key is not set yet: confirm booking directly
+          const mockTxn = "TXN-TEST-" + Math.random().toString(36).substring(2, 9).toUpperCase();
+          const confirmed = await confirmBooking(booking.id, mockTxn);
+          onSuccess?.(confirmed);
+        }
       } catch (err) {
-        onError?.(err);
+        if (booking?.id) {
+          try {
+            await cancelBooking(booking.id);
+          } catch {
+            // ignore
+          }
+        }
+        onError?.(err?.response?.data?.message || err?.message || "Booking failed.");
       }
     },
     []

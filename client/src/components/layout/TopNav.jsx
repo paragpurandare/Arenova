@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Badge from "../ui/Badge";
+import ArenovaLogo from "../common/ArenovaLogo";
 
 const ROLE_LABELS = { customer: "Customer", manager: "Manager", owner: "Owner", super: "Super Admin" };
 const ROLE_COLORS = {
@@ -36,26 +37,8 @@ export default function TopNav() {
         justifyContent: "space-between",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-        <div
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "10px",
-            background: "linear-gradient(135deg, #1D9E75, #185FA5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: "18px",
-          }}
-        >
-          A
-        </div>
-        <span style={{ fontSize: "20px", fontWeight: 800, color: "#08060d", letterSpacing: "-0.5px" }}>
-          Arenova
-        </span>
+      <div style={{ display: "flex", alignItems: "center", cursor: "pointer" }} onClick={() => navigate("/")}>
+        <ArenovaLogo theme="light" height={38} />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>

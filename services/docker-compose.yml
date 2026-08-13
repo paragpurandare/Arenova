@@ -1,0 +1,242 @@
+services:
+
+  # =========================================================
+  # EUREKA SERVER
+  # =========================================================
+
+  eureka-server:
+    image: arenova-eureka-server:latest
+    container_name: arenova-eureka-server
+
+    ports:
+      - "8761:8761"
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # MYSQL
+  # =========================================================
+
+  mysql:
+    image: mysql:8.4
+    container_name: arenova-mysql
+
+    environment:
+      MYSQL_ROOT_PASSWORD: paragpurandare2003
+      MYSQL_USER: parag
+      MYSQL_PASSWORD: paragpurandare2003
+
+    ports:
+      - "3307:3306"
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+
+    networks:
+      - arenova-network
+
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  # =========================================================
+  # SLOT SERVICE
+  # =========================================================
+
+  slot-service:
+    image: arenova-slot-service:latest
+    container_name: arenova-slot-service
+
+    ports:
+      - "8081:8081"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/arenova_slot_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: parag
+      SPRING_DATASOURCE_PASSWORD: paragpurandare2003
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # RENTAL SERVICE
+  # =========================================================
+
+  rental-service:
+    image: arenova-rental-service:latest
+    container_name: arenova-rental-service
+
+    ports:
+      - "8082:8082"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/arenova_rental_DB?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: parag
+      SPRING_DATASOURCE_PASSWORD: paragpurandare2003
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # PAYMENT SERVICE
+  # =========================================================
+
+  payment-service:
+    image: arenova-payment-service:latest
+    container_name: arenova-payment-service
+
+    ports:
+      - "8083:8083"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/arenova_payment_DB?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: parag
+      SPRING_DATASOURCE_PASSWORD: paragpurandare2003
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # BOOKING SERVICE
+  # =========================================================
+
+  booking-service:
+    image: arenova-booking-service:latest
+    container_name: arenova-booking-service
+
+    ports:
+      - "8084:8084"
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/arenova_booking_DB?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: parag
+      SPRING_DATASOURCE_PASSWORD: paragpurandare2003
+
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # MONOLITH
+  # =========================================================
+
+  monolith-service:
+    image: arenova-monolith-service:latest
+    container_name: arenova-monolith-service
+
+    ports:
+      - "8085:8085"
+
+    environment:
+
+      # Database
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/arenovaDB?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: parag
+      SPRING_DATASOURCE_PASSWORD: paragpurandare2003
+
+      # Eureka
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 86400000
+
+      # CORS
+      APP_CORS_ALLOWED_ORIGINS: "*"
+
+      # Razorpay
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+    networks:
+      - arenova-network
+
+
+  # =========================================================
+  # API GATEWAY
+  # =========================================================
+
+  api-gateway:
+    image: arenova-api-gateway:latest
+    container_name: arenova-api-gateway
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+
+    depends_on:
+      - eureka-server
+      - slot-service
+      - rental-service
+      - payment-service
+      - booking-service
+      - monolith-service
+
+    networks:
+      - arenova-network
+
+
+# =========================================================
+# VOLUMES
+# =========================================================
+
+volumes:
+  mysql_data:
+
+
+# =========================================================
+# NETWORK
+# =========================================================
+
+networks:
+  arenova-network:
+    driver: bridge

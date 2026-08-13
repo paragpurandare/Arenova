@@ -4,6 +4,7 @@ import { useAuth, ROLES } from "../context/AuthContext";
 import Button from "../components/ui/Button";
 import Field from "../components/ui/Field";
 import Input from "../components/ui/Input";
+import ArenovaLogo from "../components/common/ArenovaLogo";
 import { User, Mail, Lock, CircleUser as UserCircle, Briefcase, Building2, Shield } from "lucide-react";
 
 const ROLE_OPTIONS = [
@@ -49,10 +50,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-5" style={{ background: "linear-gradient(135deg, #f5f4f0 0%, #e8f5ef 100%)" }}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-10" style={{ animation: "modalIn 0.3s ease" }}>
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-4" style={{ background: "linear-gradient(135deg, #1D9E75, #185FA5)" }}>A</div>
-          <h1 className="text-2xl font-extrabold text-[#08060d] m-0">Welcome to Arenova</h1>
-          <p className="text-sm text-gray-500 mt-1.5">Unified Sports Arena, Rental & Player Experience Platform</p>
+        <div className="text-center mb-6 flex flex-col items-center">
+          <ArenovaLogo theme="light" height={56} className="mb-2" />
+          <p className="text-xs text-gray-500 mt-1 m-0">Unified Sports Arena, Rental & Player Experience Platform</p>
         </div>
 
         <div className="flex gap-2 mb-6 bg-[#faf9f6] rounded-xl p-1">

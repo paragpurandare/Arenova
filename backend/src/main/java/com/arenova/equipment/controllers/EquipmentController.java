@@ -30,7 +30,7 @@ public class EquipmentController {
     private final EquipmentService equipmentService;
 
     @PostMapping("/clubs/{clubId}/equipment")
-    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<EquipmentResponseDTO> createEquipment(
             @PathVariable Long clubId,
             @Valid @RequestBody EquipmentRequestDTO dto) {
@@ -51,7 +51,7 @@ public class EquipmentController {
     }
 
     @PutMapping("/equipment/{id}")
-    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<EquipmentResponseDTO> updateEquipment(
             @PathVariable Long id,
             @Valid @RequestBody EquipmentRequestDTO dto) {
@@ -60,7 +60,7 @@ public class EquipmentController {
     }
 
     @DeleteMapping("/equipment/{id}")
-    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('ROLE_OWNER', 'ROLE_ADMIN', 'ROLE_MANAGER')")
     public ResponseEntity<ApiResponse> deactivateEquipment(@PathVariable Long id) {
         equipmentService.deactivateEquipment(id);
         return ResponseEntity.ok(new ApiResponse("Equipment deactivated successfully", "Success"));
